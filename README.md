@@ -57,9 +57,10 @@ rcon.password=<your_password>
 
 ### 6. Configure systemd Service
 Create `/etc/systemd/system/nscp.service`
+if you're unsure of how to assemble a basic service unit, feel free to reach out to me via discord and i can assist in getting one up and running for you
 
 ### 7. First Launch
 Visit http://<your-ip>:8081, accept EULA, login, configure panel.
 
 ## Need Help?
-Join Discord: http://discord.newt-tech.com
+Join My Discord: http://discord.newt-tech.com
