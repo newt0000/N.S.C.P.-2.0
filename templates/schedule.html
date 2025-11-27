@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="grid-2">
+  <div class="card">
+    <h2>Create Schedule</h2>
+    <form method="post" id="scheduleForm" class="form-grid">
+      <div class="form-row">
+        <label for="type">Schedule Type</label>
+        <select id="type" name="type">
+          <option value="once">Run once at specific date/time</option>
+          <option value="daily">Run daily at a specific time</option>
+          <option value="interval">Run every N minutes</option>
+        </select>
+      </div>
+
+      <div class="form-row type-once">
+        <label for="run_at">Run at (local time)</label>
+        <input type="datetime-local" id="run_at" name="run_at">
+      </div>
+
+      <div class="form-row type-daily" style="display:none;">
+        <label for="time_str">Daily time (HH:MM)</label>
+        <input type="time" id="time_str" name="time_str">
+      </div>
+
+      <div class="form-row type-interval" style="display:none;">
+        <label for="interval_minutes">Interval (minutes)</label>
+        <input type="number" min="1" id="interval_minutes" name="interval_minutes" value="60">
+      </div>
+
+      <hr>
+
+      <div class="form-row">
+        <label for="mode">Action</label>
+        <select id="mode" name="mode">
+          <option value="command">Execute server command</option>
+          <option value="backup">Run world backup</option>
+          <option value="restart">Restart server</option>
+        </select>
+      </div>
+
+      <div class="form-row mode-command">
+        <label for="command">Console command</label>
+        <input type="text" id="command" name="command" placeholder="say Hello from scheduler">
+      </div>
+
+      <div class="form-row">
+        <label>
+          <input type="checkbox" name="enabled" checked>
+          Enabled
+        </label>
+      </div>
+
+      <div class="button-row">
+        <button type="submit" class="btn-primary">Add Schedule</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Existing Schedules</h2>
+    {% if schedules %}
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Type</th>
+            <th>Action</th>
+            <th>Timing</th>
+            <th>Enabled</th>
+            <th>Run</th>
+            <th>Delete</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in schedules %}
+            <tr>
+              <td>{{ s.id }}</td>
+              <td>{{ s.type }}</td>
+              <td>{{ s.mode or 'command' }}</td>
+              <td>
+                {% if s.type == 'once' %}
+                  {{ s.run_at_iso }}
+                {% elif s.type == 'daily' %}
+                  Daily at {{ s.time_str }}
+                {% elif s.type == 'interval' %}
+                  Every {{ s.interval_minutes }} min
+                {% endif %}
+                {% if s.command and s.mode == 'command' %}
+                  <div class="muted small">cmd: {{ s.command }}</div>
+                {% endif %}
+              </td>
+              <td>{{ 'Yes' if s.enabled else 'No' }}</td>
+              <td>
+                <form method="post" action="{{ url_for('run_schedule_now', sched_id=s.id) }}">
+                  <button type="submit" class="btn-small">Run now</button>
+                </form>
+              </td>
+              <td>
+                <form method="post" action="{{ url_for('delete_schedule', sched_id=s.id) }}">
+                  <button type="submit" class="btn-small btn-danger">Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="muted">No schedules configured yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+  (function() {
+    const typeSelect = document.getElementById("type");
+    const modeSelect = document.getElementById("mode");
+    const rowOnce = document.querySelector(".type-once");
+    const rowDaily = document.querySelector(".type-daily");
+    const rowInterval = document.querySelector(".type-interval");
+    const rowCommand = document.querySelector(".mode-command");
+
+    function updateTypeVisibility() {
+      const t = typeSelect.value;
+      rowOnce.style.display = (t === "once") ? "" : "none";
+      rowDaily.style.display = (t === "daily") ? "" : "none";
+      rowInterval.style.display = (t === "interval") ? "" : "none";
+    }
+
+    function updateModeVisibility() {
+      const m = modeSelect.value;
+      rowCommand.style.display = (m === "command") ? "" : "none";
+    }
+
+    typeSelect.addEventListener("change", updateTypeVisibility);
+    modeSelect.addEventListener("change", updateModeVisibility);
+
+    updateTypeVisibility();
+    updateModeVisibility();
+  })();
+</script>
+{% endblock %}

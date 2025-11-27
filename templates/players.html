@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="grid-2">
+  <div class="card">
+    <h2>Operator Management</h2>
+    <p class="muted">Promote or demote players and manage the whitelist.</p>
+
+    <form method="post" class="form-grid">
+      <div class="form-row">
+        <label for="player_name">Player name</label>
+        <input type="text" id="player_name" name="player_name" placeholder="Exact player name">
+      </div>
+
+      <div class="form-row">
+        <label for="action">Action</label>
+        <select id="action" name="action">
+          <option value="op">OP player</option>
+          <option value="deop">De-OP player</option>
+          <option value="whitelist_add">Whitelist add</option>
+          <option value="whitelist_remove">Whitelist remove</option>
+        </select>
+      </div>
+
+      <div class="button-row">
+        <button type="submit" class="btn-primary">Apply</button>
+      </div>
+    </form>
+
+    <h3>Current Operators</h3>
+    {% if ops %}
+      <ul class="player-list">
+        {% for op in ops %}
+          <li>
+            <strong>{{ op.name }}</strong>
+            <span class="tag">Level {{ op.level }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">No operators found.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Known Players</h2>
+    {% if players %}
+      <table class="data-table">
+  <thead>
+    <tr>
+      <th>Player</th>
+      <th>Last Seen</th>
+      <th>Source</th>
+      <th>OP?</th>
+    </tr>
+  </thead>
+<tbody>
+  {% for p in players %}
+    <tr>
+      <td class="player-cell">
+        <img
+  src="{{ p.avatar_url }}"
+  alt="{{ p.name }}'s head"
+  class="player-head"
+  loading="lazy"
+  onerror="this.onerror=null;this.src='https://minotar.net/avatar/herobrine/32';"
+/>
+
+        <span class="player-name">{{ p.name }}</span>
+      </td>
+      <td>{{ p.last_seen_human }}</td>
+      <td>{{ p.source }}</td>
+      <td>{% if p.is_op %}Yes{% else %}-{% endif %}</td>
+    </tr>
+  {% endfor %}
+</tbody>
+
+
+      </table>
+    {% else %}
+      <p class="muted">No player data available yet.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card license-card">
+  <h2>License & EULA</h2>
+  <p class="muted">
+    Please review the license terms for Newts Server Control Panel (NSCP) before continuing.
+  </p>
+
+  <div id="licenseBox" class="license-box">
+    <h3>Newts Server Control Panel (NSCP) – End User License Agreement</h3>
+    <p><strong>Last updated:</strong> 2025-11-25</p>
+
+    <p>
+      This End User License Agreement ("Agreement") is a legal agreement between you and the author
+      and owner of Newts Server Control Panel ("NSCP", "Software", or "Licensor").
+      By installing, accessing, or using the Software, you agree to be bound by this Agreement.
+      If you do not agree, you must not use the Software.
+    </p>
+
+    <h4>1. Grant of License</h4>
+    <p>
+      Subject to your compliance with this Agreement, the Licensor grants you a limited,
+      non-exclusive, non-transferable, revocable license to install and use the Software
+      solely for managing Minecraft servers that you own or are authorized to administer.
+    </p>
+
+    <h4>2. Restrictions</h4>
+    <p>You agree that you shall <strong>not</strong>:</p>
+    <ul>
+      <li>Copy, distribute, publish, or share the Software, in whole or in part, without prior written permission.</li>
+      <li>Modify, alter, translate, adapt, or create derivative works of the Software, including UI, branding, or features, without prior written permission.</li>
+      <li>Resell, commercialize, or offer the Software as a paid or free hosting/control panel service without prior written permission.</li>
+      <li>Remove or alter any copyright, branding, or proprietary notices in the Software.</li>
+      <li>Reverse engineer, decompile, or disassemble any compiled portion of the Software except where expressly permitted by applicable law.</li>
+    </ul>
+    <p>
+      Any unauthorized alteration, modification, addition, resale, or redistribution of the Software
+      is explicitly prohibited. <strong>All rights are reserved by the Licensor.</strong>
+    </p>
+
+    <h4>3. Ownership</h4>
+    <p>
+      The Software is licensed, not sold. The Licensor retains all right, title, and interest in and to the Software,
+      including all associated intellectual property rights. This Agreement does not transfer any ownership rights to you.
+    </p>
+
+    <h4>4. Third-Party Components</h4>
+    <p>
+      The Software may rely on or integrate third-party libraries and services (such as Python packages, Flask, psutil, etc.).
+      These components are governed by their own licenses, which remain in full force and effect. Nothing in this Agreement
+      limits your rights under those third-party licenses.
+    </p>
+
+    <h4>5. Updates and Changes</h4>
+    <p>
+      The Licensor may, but is not obligated to, provide updates, bug fixes, or new features. Any such updates shall
+      be considered part of the Software and subject to this Agreement, unless stated otherwise.
+      The Licensor may modify or discontinue the Software at any time, with or without notice.
+    </p>
+
+    <h4>6. Termination</h4>
+    <p>
+      This Agreement remains in effect until terminated. It will automatically terminate if you fail to
+      comply with any of its terms. Upon termination, you must cease all use of the Software and remove all copies
+      in your possession or control.
+    </p>
+
+    <h4>7. No Warranty</h4>
+    <p>
+      THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE," WITHOUT WARRANTY OF ANY KIND, WHETHER EXPRESS OR IMPLIED,
+      INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT,
+      OR AVAILABILITY. YOU ASSUME ALL RISK ARISING FROM YOUR USE OF THE SOFTWARE.
+    </p>
+
+    <h4>8. Limitation of Liability</h4>
+    <p>
+      TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE LICENSOR SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL,
+      SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF DATA, PROFITS, OR REVENUE, ARISING FROM OR
+      RELATED TO YOUR USE OF OR INABILITY TO USE THE SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+    </p>
+
+    <h4>9. Governing Law</h4>
+    <p>
+      This Agreement shall be governed by and construed in accordance with the laws of the jurisdiction in which
+      the Licensor resides, without regard to conflict of law principles.
+    </p>
+
+    <h4>10. Acceptance</h4>
+    <p>
+      By installing, accessing, or using the Software, you acknowledge that you have read, understood, and agree
+      to be bound by this Agreement. If you do not agree, you must not use the Software.
+    </p>
+  </div>
+
+    <form method="post" id="licenseForm" class="license-form">
+    <div class="form-row">
+      <label>
+        <input name="accept" type="checkbox" id="acceptCheck" disabled>
+        I have read and agree to the License & EULA.
+      </label>
+    </div>
+
+    <p id="licenseHint" class="muted small">
+      Scroll to the bottom of the license to enable the checkbox, then check it to continue.
+    </p>
+
+    <div class="button-row">
+      <button type="submit" id="acceptBtn" class="btn-primary" disabled>Accept & Continue</button>
+      <a href="{{ url_for('logout') }}" class="btn-secondary">Decline</a>
+    </div>
+  </form>
+</div>
+
+<script>
+(function() {
+  const box      = document.getElementById("licenseBox");
+  const checkbox = document.getElementById("acceptCheck");
+  const button   = document.getElementById("acceptBtn");
+  const hint     = document.getElementById("licenseHint");
+
+  let scrolledToBottom = false;
+
+  function updateButtonState() {
+    const ok = scrolledToBottom && checkbox.checked && !checkbox.disabled;
+    button.disabled = !ok;
+    if (ok) {
+      hint.textContent = "You may now click Accept & Continue.";
+    }
+  }
+
+  box.addEventListener("scroll", function() {
+    const nearBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 5;
+    if (nearBottom && checkbox.disabled) {
+      checkbox.disabled = false;
+      hint.textContent = "Thank you for reading the EULA, you may now check the box to accept and press the button continue to NSCP.";
+    }
+    scrolledToBottom = nearBottom || scrolledToBottom;
+    updateButtonState();
+  });
+
+  checkbox.addEventListener("change", updateButtonState);
+
+  // Initial state
+  button.disabled = true;
+})();
+</script>
+{% endblock %}

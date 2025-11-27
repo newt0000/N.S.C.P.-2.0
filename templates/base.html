@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ title or "Newts Server Control Panel" }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+  <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+  <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon"><img width="64px" src="{{ url_for('static', filename='logo.png') }}"></div>
+        <div class="brand-text">
+          Newts<br><span>Server Control Panel <small>v{{ APP_VERSION }}</small></span>
+        </div>
+      </div>
+      {% if session.get('logged_in') %}
+      
+        <nav>
+  <a href="{{ url_for('dashboard') }}">Dashboard</a>
+  <a href="{{ url_for('console') }}">Console</a>
+  <a href="{{ url_for('backups_page') }}">Backups (W.I.P.)</a>
+  <a href="{{ url_for('schedule_page') }}">Scheduler</a>
+  <a href="{{ url_for('properties_page') }}">Properties</a>
+  <a href="{{ url_for('players_page') }}">Players</a>   <!-- NEW -->
+  <a href="{{ url_for('plugins_page') }}">Plugins</a>  <!-- NEW -->
+  <a href="{{ url_for('files_page') }}">File Manager</a>   <!-- NEW -->
+  <a href="{{ url_for('settings_page') }}">Settings</a>
+  <a href="{{ url_for('logout') }}" class="logout">Logout</a>
+      </nav>
+      {% endif %}
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <h1>{{ title or "Newts Server Control Panel" }}</h1>
+      </header>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+      <div class="flash-container">
+        {% for category, message in messages %}
+        <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endwith %}
+
+      <section class="content">
+        {% block content %}{% endblock %}
+      </section>
+    </main>
+  </div>
+</body>
+</html>

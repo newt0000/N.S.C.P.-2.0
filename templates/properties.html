@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>server.properties</h2>
+  <form method="post" class="properties-grid">
+    {% for k, v in props.items() %}
+    <div class="prop-row">
+      <label>{{ k }}</label>
+      <input type="text" name="prop_{{ k }}" value="{{ v }}">
+    </div>
+    {% endfor %}
+    <button type="submit" class="btn-primary">Save</button>
+  </form>
+</div>
+{% endblock %}

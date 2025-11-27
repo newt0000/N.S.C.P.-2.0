@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>File Manager</h2>
+  <p class="muted">Root: {{ cfg.minecraft.server_dir if cfg is defined else '' }}</p>
+
+  <div class="breadcrumb">
+    <strong>Current:</strong>
+    <code>/{{ rel_path or '' }}</code>
+  </div>
+
+  <div class="file-actions">
+    {% if parent_rel %}
+      <a class="btn-small" href="{{ url_for('files_page', path=parent_rel) }}">⬆ Up one level</a>
+    {% endif %}
+  </div>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Size</th>
+        <th>Modified</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in entries %}
+        <tr>
+          <td>
+            {% if e.is_dir %}
+              📁 <a href="{{ url_for('files_page', path=(rel_path ~ '/' if rel_path else '') ~ e.name) }}">{{ e.name }}</a>
+            {% else %}
+              📄 {{ e.name }}
+            {% endif %}
+          </td>
+          <td>
+            {% if e.is_dir %}
+              -
+            {% else %}
+              {{ (e.size / 1024) | round(1) }} KB
+            {% endif %}
+          </td>
+          <td>{{ e.mtime }}</td>
+          <td>
+  {% if not e.is_dir %}
+    <a class="btn-small" href="{{ url_for('files_download', path=(rel_path ~ '/' if rel_path else '') ~ e.name) }}">Download</a>
+
+    {% if e.can_edit %}
+      <a class="btn-small" href="{{ url_for('files_edit', path=(rel_path ~ '/' if rel_path else '') ~ e.name) }}">Edit</a>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('files_delete') }}" style="display:inline;">
+      <input type="hidden" name="path" value="{{ (rel_path ~ '/' if rel_path else '') ~ e.name }}">
+      <button type="submit" class="btn-small btn-danger">Delete</button>
+    </form>
+
+    <form method="post" action="{{ url_for('files_rename') }}" class="inline-form">
+      <input type="hidden" name="path" value="{{ (rel_path ~ '/' if rel_path else '') ~ e.name }}">
+      <input type="text" name="new_name" placeholder="New name" class="rename-input">
+      <button type="submit" class="btn-small">Rename</button>
+    </form>
+  {% else %}
+    <span class="muted small">Directory</span>
+  {% endif %}
+</td>
+
+
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h3>Upload File</h3>
+  <form method="post" enctype="multipart/form-data">
+    <input type="file" name="file">
+    <button type="submit" class="btn-primary">Upload</button>
+  </form>
+</div>
+{% endblock %}

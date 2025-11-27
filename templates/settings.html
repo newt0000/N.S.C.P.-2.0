@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>Settings</h2>
+  <form method="post">
+    <label>Server start command</label>
+    <textarea name="start_command" rows="3">{{ state.start_command }}</textarea>
+
+    <label>Discord Webhook URL</label>
+    <input type="text" name="webhook_url" value="{{ state.discord_webhook_url }}">
+
+    <label class="checkbox">
+      <input type="checkbox" name="auto_restart" {% if state.auto_restart %}checked{% endif %}>
+      Auto-restart on crash
+    </label>
+
+    <button type="submit" class="btn-primary">Save Settings</button>
+  </form>
+</div>
+{% endblock %}
