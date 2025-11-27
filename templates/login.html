@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card card-centered">
+  <div class="brand">
+        <div class="brand-icon"><img width="64px" src="{{ url_for('static', filename='logo.png') }}"></div>
+  </div>
+  <h2>Login</h2>
+  <form method="post">
+    <label>Password</label>
+    <input type="password" name="password" required>
+    <button type="submit" class="btn-primary">Enter Panel</button>
+  </form>
+</div>
+{% endblock %}

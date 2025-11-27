@@ -1,0 +1,6 @@
+Flask==3.0.3
+psutil==6.0.0
+PyYAML==6.0.2
+APScheduler==3.10.4
+requests==2.32.3
+mcrcon==0.7.0

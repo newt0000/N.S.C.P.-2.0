@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>Plugin Manager</h2>
+  <p class="muted">
+    Toggling a plugin renames its <code>.jar</code> file to <code>.jar.disabled</code> (or back).
+    Changes take effect the next time the server starts.
+  </p>
+
+  {% if plugins %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Plugin</th>
+          <th>File</th>
+          <th>Status</th>
+          <th>Toggle</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in plugins %}
+          <tr>
+            <td>{{ p.plugin }}</td>
+            <td><code>{{ p.file }}</code></td>
+            <td class="{{ 'plugin-enabled' if p.enabled else 'plugin-disabled' }}">
+  {{ 'Enabled' if p.enabled else 'Disabled' }}
+</td>
+
+            <td>
+              <form method="post" action="{{ url_for('plugins_toggle') }}">
+                <input type="hidden" name="file" value="{{ p.file }}">
+                <button type="submit" class="btn-small">
+                  {{ 'Disable' if p.enabled else 'Enable' }}
+                </button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="muted">No plugin jars found in the <code>plugins</code> directory.</p>
+  {% endif %}
+</div>
+{% endblock %}

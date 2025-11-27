@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>Edit File</h2>
+  <p class="muted">
+    <strong>Path:</strong> <code>{{ rel_path }}</code>
+  </p>
+
+  <div class="button-row">
+    <a class="btn-small" href="{{ url_for('files_page', path=parent_rel) }}">⬅ Back to File Manager</a>
+  </div>
+
+  <form method="post" class="form-grid">
+    <div class="form-row">
+      <label for="content">Editing: {{ filename }}</label>
+      <textarea id="content" name="content" rows="24" class="code-textarea">{{ content }}</textarea>
+    </div>
+
+    <div class="button-row">
+      <button type="submit" class="btn-primary">Save</button>
+      <a class="btn-secondary" href="{{ url_for('files_page', path=parent_rel) }}">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

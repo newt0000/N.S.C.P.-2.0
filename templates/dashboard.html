@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="grid-2">
+  <div class="card">
+    <h2>Server Status</h2>
+    <div id="server-status" data-initial="{{ 'online' if stats.server_running else 'offline' }}">
+      <div class="status-pill {{ 'online' if stats.server_running else 'offline' }}">
+        {{ 'Online' if stats.server_running else 'Offline' }}
+      </div>
+    </div>
+    <div class="button-row">
+      <button id="btn-start" class="btn-primary">Start Server</button>
+      <button id="btn-stop" class="btn-outline">Stop Server</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Hardware Usage</h2>
+    <div id="stats">
+      <p>CPU: <span id="cpu"></span></p>
+      <p>Memory: <span id="mem"></span></p>
+      <p>Disk: <span id="disk"></span></p>
+    </div>
+  </div>
+</div>
+
+<!-- NEW: players section -->
+<div class="grid-2" style="margin-top: 1.25rem;">
+  <div class="card">
+    <h2>Online Players</h2>
+    <ul id="online-players" class="player-list">
+      <li class="placeholder">No data yet…</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Recent Players</h2>
+    <ul id="recent-players" class="player-list">
+      <li class="placeholder">No data yet…</li>
+    </ul>
+  </div>
+</div>
+{% endblock %}

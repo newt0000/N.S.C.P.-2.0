@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>Backups</h2>
+  <form method="post" action="{{ url_for('run_backup') }}">
+    <button type="submit" class="btn-primary">Create Backup Now</button>
+  </form>
+  <h3>Existing Backups</h3>
+  <ul class="list">
+    {% for b in backups %}
+    <li>{{ b }}</li>
+    {% else %}
+    <li>No backups found.</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

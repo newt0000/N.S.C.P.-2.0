@@ -1,0 +1,32 @@
+# config.yml
+panel:
+  host: "0.0.0.0"
+  port: 8081
+  secret_key: "sdfgertyrtytryrtyerrrtayt54y465h"
+  admin_password: "CHANGE-PASSWORD"
+
+minecraft:
+  # Command used to start the server (shell=True)
+  start_command: "cd PATH-TO-SERVER-EXECUTABLE-DIRCTORY && java -Xms2G -Xmx14G -jar server.jar nogui"
+  # Directory that contains world, logs, server.jar, etc.
+  server_dir: "PATH-TO-SERVER-DIRECTORY"
+  # Path to server.properties
+  properties_file: "PATH-TO-SERVER-PROPERTIES-FILE"
+  # Auto-restart on crash
+  auto_restart: false
+
+backups:
+  # Folder to place backups (must exist)
+  backup_dir: "PATH-TO-SERVER-BACKUPS-DIRECTORY"
+  # World folder to back up
+  world_dir: "PATH-TO-SERVER-WORLD-DIRECTORY"
+  # Number of backups to keep (older ones removed)
+  keep_last: 10
+
+discord:
+  # Optional webhook; can be overridden in UI
+  webhook_url: ""
+
+scheduler:
+  # How often (seconds) to check for scheduled commands
+  tick_seconds: 30
