@@ -35,7 +35,7 @@ from server_manager import MinecraftServerManager
 # -------------------------------------------------
 # Paths
 # -------------------------------------------------
-APP_VERSION = "2.2.11"
+APP_VERSION = "2.3.02"
 
 CONFIG_PATH = "config.yml"
 DATA_DIR = "data"
