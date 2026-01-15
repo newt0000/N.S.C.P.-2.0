@@ -43,6 +43,8 @@ EULA_FILE = os.path.join(DATA_DIR, "eula.txt")
 SCHEDULES_PATH = os.path.join(DATA_DIR, "schedules.json")
 CONFIG_STATE_PATH = os.path.join(DATA_DIR, "config_state.json")
 UUID_CACHE_PATH = os.path.join(DATA_DIR, "uuid_cache.json")
+TEMPBANS_PATH = os.path.join(DATA_DIR, "tempbans.json")
+
 
 
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -118,6 +120,29 @@ def load_json(path, default):
     except Exception:
         return default
 
+def load_tempbans():
+    return load_json(TEMPBANS_PATH, [])
+
+def save_tempbans(items):
+    save_json(TEMPBANS_PATH, items)
+def get_banned_players():
+    path = os.path.join(cfg["minecraft"]["server_dir"], "banned-players.json")
+    data = load_json(path, [])
+    # Normalize
+    out = []
+    if isinstance(data, list):
+        for e in data:
+            if not isinstance(e, dict):
+                continue
+            out.append({
+                "name": e.get("name") or "unknown",
+                "uuid": e.get("uuid"),
+                "reason": e.get("reason") or "",
+                "created": e.get("created") or "",
+                "expires": e.get("expires") or "forever",
+                "source": e.get("source") or "",
+            })
+    return out
 
 def save_json(path, data):
     tmp = path + ".tmp"
@@ -432,6 +457,33 @@ def scheduler_tick():
 
     if changed:
         set_schedules(schedules)
+    # NEW: temp-ban expiration processing
+    process_tempbans()
+
+def process_tempbans():
+    items = load_tempbans()
+    if not items:
+        return
+
+    now = datetime.utcnow()
+    keep = []
+    for tb in items:
+        try:
+            expires = datetime.fromisoformat(tb["expires_at_iso"].replace("Z", ""))
+        except Exception:
+            keep.append(tb)
+            continue
+
+        if now >= expires:
+            name = tb.get("name")
+            if name:
+                server_mgr.send_command(f"pardon {name}")
+                send_discord_embed("Temp-ban expired", f"Unbanned `{name}` (temp-ban expired).", color=0x00ffff)
+        else:
+            keep.append(tb)
+
+    if keep != items:
+        save_tempbans(keep)
 
 def execute_schedule(sched: dict) -> bool:
     """
@@ -600,6 +652,13 @@ def api_server_stop():
     if ok:
         send_discord_embed("Server Stopped", "Minecraft server stopped.")
     return jsonify({"ok": ok})
+@app.route("/api/server/restart", methods=["POST"])
+@login_required
+def api_server_restart():
+    ok = server_mgr.restart()
+    if ok:
+        send_discord_embed("Server Restarted", "Minecraft server restarted.")
+    return jsonify({"ok": ok})
 
 
 @app.route("/api/stats")
@@ -705,7 +764,6 @@ def license_page():
 
 
 
-
 @app.route("/license/accept", methods=["POST"])
 @login_required
 def license_accept():
@@ -733,6 +791,84 @@ def enforce_license_acceptance():
     # If user hasn't accepted license, always send them to /license
     if not session.get("license_accepted"):
         return redirect(url_for("license_page"))
+#---------------------------
+#     bans page actions
+#---------------------------
+@app.route("/bans", methods=["GET", "POST"])
+@login_required
+def bans_page():
+    if request.method == "POST":
+        action = request.form.get("action")
+        name = (request.form.get("player_name") or "").strip()
+        reason = (request.form.get("reason") or "").strip()
+        duration_minutes = (request.form.get("duration_minutes") or "").strip()
+
+        if action == "ban":
+            if not name:
+                flash("Select a player to ban.", "error")
+                return redirect(url_for("bans_page"))
+
+            # Apply ban (reason optional)
+            cmd = f"ban {name} {reason}".strip()
+            ok = server_mgr.send_command(cmd)
+            if not ok:
+                flash("Could not send ban command (server not running?).", "error")
+                return redirect(url_for("bans_page"))
+
+            # Optional temp-ban
+            if duration_minutes:
+                try:
+                    mins = int(duration_minutes)
+                    if mins > 0:
+                        expires = datetime.utcnow() + timedelta(minutes=mins)
+                        items = load_tempbans()
+                        # replace existing tempban record for same player
+                        items = [i for i in items if i.get("name") != name]
+                        items.append({
+                            "name": name,
+                            "reason": reason,
+                            "created_at_iso": datetime.utcnow().isoformat() + "Z",
+                            "expires_at_iso": expires.isoformat() + "Z",
+                        })
+                        save_tempbans(items)
+                except Exception:
+                    flash("Temp-ban duration must be a whole number of minutes.", "error")
+
+            flash(f"Banned {name}.", "success")
+            return redirect(url_for("bans_page"))
+
+        elif action == "unban":
+            if not name:
+                flash("Select a player to unban.", "error")
+                return redirect(url_for("bans_page"))
+
+            ok = server_mgr.send_command(f"pardon {name}")
+            if ok:
+                # remove any tempban record
+                items = [i for i in load_tempbans() if i.get("name") != name]
+                save_tempbans(items)
+                flash(f"Unbanned {name}.", "success")
+            else:
+                flash("Could not send unban command (server not running?).", "error")
+            return redirect(url_for("bans_page"))
+
+    banned = get_banned_players()
+    known_players = get_known_players()  # your existing function
+    tempbans = load_tempbans()
+    temp_index = {t["name"]: t for t in tempbans if "name" in t}
+
+    # attach temp-ban expiry (if tracked)
+    for b in banned:
+        tb = temp_index.get(b["name"])
+        if tb:
+            b["temp_expires_at"] = tb.get("expires_at_iso")
+
+    return render_template(
+        "bans.html",
+        title="Bans",
+        banned=banned,
+        players=known_players,
+    )
 
 # -------------------------------------------------
 # Plugin Manager

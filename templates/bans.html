@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>Bans</h2>
+  <p class="muted">Shows current entries from <code>banned-players.json</code>. Temp-bans are handled by NSCP auto-unban.</p>
+
+  <div class="grid-two">
+    <div>
+      <h3>Ban a Player</h3>
+      <form method="post">
+        <input type="hidden" name="action" value="ban">
+
+        <div class="form-row">
+          <label>Player</label>
+          <select name="player_name" required>
+            <option value="">Select player…</option>
+            {% for p in players %}
+              <option value="{{ p.name }}">{{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label>Reason</label>
+          <input name="reason" placeholder="Optional reason…">
+        </div>
+
+        <div class="form-row">
+          <label>Temp-ban (minutes)</label>
+          <input name="duration_minutes" type="number" min="1" placeholder="Leave blank for permanent">
+        </div>
+
+        <button type="submit" class="btn-primary">Ban</button>
+      </form>
+
+      <hr style="margin:14px 0; opacity:.25;">
+
+      <h3>Unban a Player</h3>
+      <form method="post">
+        <input type="hidden" name="action" value="unban">
+        <div class="form-row">
+          <label>Player</label>
+          <input name="player_name" placeholder="Exact username" required>
+        </div>
+        <button type="submit" class="btn-secondary">Unban</button>
+      </form>
+    </div>
+
+    <div>
+      <h3>Currently Banned</h3>
+      {% if banned %}
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Player</th>
+              <th>Reason</th>
+              <th>Created</th>
+              <th>Expires</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for b in banned %}
+              <tr>
+                <td>{{ b.name }}</td>
+                <td class="muted">{{ b.reason or "-" }}</td>
+                <td class="muted small">{{ b.created or "-" }}</td>
+                <td class="muted small">
+                  {% if b.temp_expires_at %}
+                    {{ b.temp_expires_at }}
+                  {% else %}
+                    {{ b.expires or "forever" }}
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="muted">No banned players found.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

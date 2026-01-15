@@ -2,6 +2,12 @@
 {% block content %}
 <div class="card console-card">
   <h2>Console</h2>
+    <div class="button-row" style="margin-bottom: 12px;">
+  <button id="btnStart" class="btn-small">Start</button>
+  <button id="btnStop" class="btn-small btn-danger">Stop</button>
+  <button id="btnRestart" class="btn-small">Restart</button>
+</div>
+
   <div id="console-output"></div>
   <form id="console-form">
     <input type="text" id="console-command" placeholder="Type command..." autocomplete="off">
