@@ -4,6 +4,22 @@ async function fetchJson(url, options = {}) {
   const res = await fetch(url, options);
   return res.json();
 }
+(function () {
+  const btnStart = document.getElementById("btnStart");
+  const btnStop = document.getElementById("btnStop");
+  const btnRestart = document.getElementById("btnRestart");
+
+  async function post(url) {
+    const r = await fetch(url, { method: "POST" });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) throw new Error(j.error || `Request failed: ${r.status}`);
+    return j;
+  }
+
+  if (btnStart) btnStart.addEventListener("click", async () => { await post("/api/server/start"); });
+  if (btnStop) btnStop.addEventListener("click", async () => { await post("/api/server/stop"); });
+  if (btnRestart) btnRestart.addEventListener("click", async () => { await post("/api/server/restart"); });
+})();
 
 function initDashboard() {
   const cpuEl = document.getElementById("cpu");

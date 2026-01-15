@@ -63,6 +63,22 @@ class SimpleRCON:
             buf += chunk
         return buf
 
+    def restart(self) -> bool:
+        # non-blocking: issue stop then start after a short delay in a thread
+        def worker():
+            self.stop()
+            # wait for process to actually stop
+            for _ in range(30):
+                time.sleep(1)
+                if not self.is_running():
+                    break
+            time.sleep(1)
+            self.start()
+
+        threading.Thread(target=worker, daemon=True).start()
+        self._add_log_line("[PANEL] Restart requested.")
+        return True
+
     def _read_packet(self):
         if self.sock is None:
             raise RuntimeError("RCON socket not connected")
