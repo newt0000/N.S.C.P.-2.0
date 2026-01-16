@@ -43,6 +43,7 @@ chmod +x runcp.sh
 ```
 
 ### 4. Install Dependencies
+#### <red style="color:orange">*only required if you dont use the launch script*</red>
 ```
 pip install -r requirements.txt
 ```
@@ -64,3 +65,82 @@ Visit http://<your-ip>:8081, accept EULA, login, configure panel.
 
 ## Need Help?
 Join My Discord: http://discord.newt-tech.com
+
+# Gallery
+
+<details>
+  <summary>Login Page</summary>
+
+  ## Login  
+  <img alt="login page" src="gallery/login.png">
+</details>
+
+<details>
+  <summary>Dashboard</summary>
+
+  ## Dashboard  
+  <img alt="dashboard page" src="gallery/dashboard.png">
+</details>
+
+<details>
+  <summary>Console</summary>
+
+  ## Console  
+  <img alt="console page" src="gallery/console.png">
+</details>
+
+<details>
+  <summary>Backups</summary>
+
+  ## Backups  
+  <img alt="backups page" src="gallery/backups.png">
+</details>
+
+<details>
+  <summary>Scheduler</summary>
+
+  ## Scheduler  
+  <img alt="scheduler page" src="gallery/scheduler.png">
+</details>
+
+<details>
+  <summary>Properties</summary>
+
+  ## Properties  
+  <img alt="properties page" src="gallery/properties.png">
+</details>
+
+<details>
+  <summary>Players</summary>
+
+  ## Players  
+  <img alt="players page" src="gallery/players.png">
+</details>
+
+<details>
+  <summary>Bans</summary>
+
+  ## Bans  
+  <img alt="bans page" src="gallery/bans.png">
+</details>
+
+<details>
+  <summary>Plugins</summary>
+
+  ## Plugins  
+  <img alt="plugins page" src="gallery/plugins.png">
+</details>
+
+<details>
+  <summary>File Manager</summary>
+
+  ## File Manager  
+  <img alt="file manager page" src="gallery/files.png">
+</details>
+
+<details>
+  <summary>Settings</summary>
+
+  ## Settings  
+  <img alt="settings page" src="gallery/settings.png">
+</details>
