@@ -1,6 +1,6 @@
 Newt's Server Control Panel (NSCP) – License Agreement
-Version: v2.2.11
-Last Updated: 2025-11-25
+Version: v2.3.02
+Last Updated: 2026-01-19
 
 Copyright © 2025 Kai O'Hara. All rights reserved.
 
