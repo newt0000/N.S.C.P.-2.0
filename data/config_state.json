@@ -1,5 +1,5 @@
 {
   "discord_webhook_url": "",
   "auto_restart": true,
-  "start_command": "cd /DATA/AppData/servers/minecraft && java -Xms2G -Xmx14G -jar paper12110.jar nogui"
+  "start_command": "cd /DATA/AppData/servers/minecraft && java -Xms2G -Xmx14G -jar server.jar nogui"
 }
