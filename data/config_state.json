@@ -1,5 +1,5 @@
 {
-  "discord_webhook_url": "https://discord.com/api/webhooks/1439353559547117699/O36VWHnR95gd2VB85sY0JKtJqfuOlBfS2bC-R2Y1Nxh0_YEwTGKxbjZBbbX47RM_7doi",
+  "discord_webhook_url": "",
   "auto_restart": true,
-  "start_command": "cd /DATA/AppData/crafty/servers/aad595e7-3379-4288-8a9e-d02c5b07e7a4 && java -Xms2G -Xmx14G -jar paper12110.jar nogui"
+  "start_command": "cd /DATA/AppData/servers/minecraft && java -Xms2G -Xmx14G -jar paper12110.jar nogui"
 }
