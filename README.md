@@ -31,7 +31,7 @@ A standalone Linux-based Minecraft server management panel featuring backups, sc
 ### 1. Extract NSCP
 Place the folder somewhere permanent:
 ```
-/DATA/AppData/crafty/servers/<server-id>/nscp2.0
+/DATA/AppData/servers/<server-id>/nscp2.0
 ```
 
 ### 2. Configure config.yml
