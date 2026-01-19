@@ -22,7 +22,7 @@ A standalone Linux-based Minecraft server management panel featuring backups, sc
 - pip
 - Linux OS
 - Bash
-- Minecraft server jar (Paper/Spigot/Purpur/etc.)
+- Minecraft server jar (java/Paper/Spigot/Purpur/etc.)
 - systemd
 - RCON enabled
 
