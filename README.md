@@ -31,7 +31,7 @@ A standalone Linux-based Minecraft server management panel featuring backups, sc
 ### 1. Extract NSCP
 Place the folder somewhere permanent:
 ```
-/DATA/AppData/servers/<server-id>/nscp2.0
+/DATA/AppData/servers/server-id/nscp2.0
 ```
 
 ### 2. Configure config.yml
@@ -53,7 +53,7 @@ Add to server.properties:
 ```
 enable-rcon=true
 rcon.port=25575
-rcon.password=<your_password>
+rcon.password=your_password
 ```
 
 ### 6. Configure systemd Service
@@ -61,7 +61,7 @@ Create `/etc/systemd/system/nscp.service`
 if you're unsure of how to assemble a basic service unit, feel free to reach out to me via discord and i can assist in getting one up and running for you
 
 ### 7. First Launch
-Visit http://'<your-ip>':8081, accept EULA, login, configure panel.
+Visit http://YOUR-IP:8081, accept EULA, login, configure panel.
 
 ## Need Help?
 Join My Discord: http://discord.newt-tech.com
