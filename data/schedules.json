@@ -13,7 +13,7 @@
     "type": "daily",
     "enabled": true,
     "mode": "command",
-    "command": "tellraw @a [\"\",{\"text\":\"[\",\"bold\":true},{\"text\":\"N.S.C.P.\",\"bold\":true,\"color\":\"gold\"},{\"text\":\" Create-ive Minds\",\"color\":\"yellow\"},{\"text\":\"]\",\"bold\":true},{\"text\":\" Server will shut down for daily backup in 5 mins\",\"bold\":true,\"color\":\"red\"}]",
+    "command": "tellraw @a [\"\",{\"text\":\"[\",\"bold\":true},{\"text\":\"N.S.C.P.\",\"bold\":true,\"color\":\"gold\"},{\"text\":\" Minecraft Server\",\"color\":\"yellow\"},{\"text\":\"]\",\"bold\":true},{\"text\":\" Server will shut down for daily backup in 5 mins\",\"bold\":true,\"color\":\"red\"}]",
     "time_str": "4:55",
     "last_run_iso": "2025-11-25T04:55:12.735726"
   }
