@@ -22,7 +22,6 @@ fi
 # Activate venv
 echo "Activating virtual environment..."
 source $VENV_DIR/bin/activate
-python3 -c "import mcrcon; print('Mcrcon loaded OK')"
 
 # Upgrade pip
 pip install --upgrade pip
@@ -30,6 +29,9 @@ pip install --upgrade pip
 echo "installing dependancies..."
 pip install -r requirements.txt
 echo "✅ Dependencies installed."
+
+
+python3 -c "import mcrcon; print('Mcrcon loaded OK')"
 
 # Run bot
 echo "🚀 Launching NSCP 2.0 ..."
