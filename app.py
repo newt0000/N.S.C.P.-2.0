@@ -1,10 +1,22 @@
 # app.py
 import os
+import shlex
 import json
 import time
 from datetime import datetime, timedelta
 from functools import wraps
 import re
+import sqlite3
+import secrets
+import subprocess
+import shutil
+import hashlib
+import tarfile
+import tempfile
+import threading
+import uuid
+from pathlib import Path
+from werkzeug.security import generate_password_hash, check_password_hash
 
 import yaml
 import psutil
@@ -35,7 +47,7 @@ from server_manager import MinecraftServerManager
 # -------------------------------------------------
 # Paths
 # -------------------------------------------------
-APP_VERSION = "2.3.02"
+APP_VERSION = "2.1.0"
 
 CONFIG_PATH = "config.yml"
 DATA_DIR = "data"
@@ -67,9 +79,187 @@ runtime_state = {
     "discord_webhook_url": cfg.get("discord", {}).get("webhook_url", ""),
     "auto_restart": cfg.get("minecraft", {}).get("auto_restart", True),
     "start_command": cfg["minecraft"]["start_command"],
+    "server_mode": "vanilla",
+    "server_jar": "",
+    "java_runtime": "system",
 }
 
+def available_server_jars():
+    """List regular .jar files directly inside the server's versions directory."""
+    versions = os.path.join(cfg["minecraft"]["server_dir"], "versions")
+    try:
+        return sorted((item.name for item in os.scandir(versions)
+                       if item.is_file(follow_symlinks=False) and item.name.lower().endswith(".jar")), key=str.casefold)
+    except OSError:
+        return []
+
+
+JAVA_ROOT = Path(__file__).resolve().parent / "data" / "java_runtimes"
+JAVA_RELEASES = (17, 21, 25)
+
+def java_executable(selection):
+    if selection == "system":
+        return shutil.which("java")
+    if selection not in [str(v) for v in JAVA_RELEASES]:
+        return None
+    candidate = JAVA_ROOT / ("temurin-" + selection) / "bin" / "java"
+    return str(candidate) if candidate.is_file() and os.access(candidate, os.X_OK) else None
+
+def java_version(path):
+    if not path:
+        return "Not installed"
+    try:
+        p = subprocess.run([path, "-version"], capture_output=True, text=True, timeout=8)
+        return (p.stderr or p.stdout).splitlines()[0][:160]
+    except (OSError, subprocess.TimeoutExpired, IndexError):
+        return "Unavailable"
+
+def java_runtime_options():
+    return [("system", "System Java", java_version(java_executable("system")))] + [
+        (str(v), "Eclipse Temurin " + str(v), java_version(java_executable(str(v)))) for v in JAVA_RELEASES
+    ]
+
+def install_temurin(major, progress=None):
+    progress = progress or (lambda **kw: None)
+    """Download verified Temurin JDK into panel-owned data directory (no sudo)."""
+    if major not in JAVA_RELEASES:
+        raise ValueError("Unsupported Java release")
+    import platform
+    arch = {"x86_64": "x64", "aarch64": "aarch64"}.get(platform.machine().lower())
+    if platform.system() != "Linux" or not arch:
+        raise ValueError("Automatic installation supports Linux x86_64 and aarch64 only")
+    endpoint = f"https://api.adoptium.net/v3/assets/latest/{major}/hotspot"
+    progress(stage="Checking available releases", percent=2)
+    resp = requests.get(endpoint, params={"architecture": arch, "image_type": "jdk", "os": "linux", "vendor": "eclipse"}, timeout=25)
+    resp.raise_for_status()
+    assets = resp.json()
+    if not assets:
+        raise ValueError("No matching Temurin release available")
+    pkg = assets[0]["binary"]["package"]
+    url, expected = pkg["link"], pkg["checksum"].lower()
+    if not url.startswith("https://") or len(expected) != 64:
+        raise ValueError("Invalid download metadata")
+    JAVA_ROOT.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="java-install-", dir=JAVA_ROOT) as temp:
+        archive = Path(temp) / "jdk.tar.gz"
+        digest = hashlib.sha256()
+        progress(stage="Downloading Java", percent=5)
+        with requests.get(url, stream=True, timeout=(15, 120)) as response:
+            response.raise_for_status()
+            total = int(response.headers.get("Content-Length") or 0)
+            with archive.open("wb") as output:
+                size = 0
+                for chunk in response.iter_content(1024 * 1024):
+                    size += len(chunk)
+                    if size > 550 * 1024 * 1024:
+                        raise ValueError("Java archive exceeds download limit")
+                    digest.update(chunk)
+                    output.write(chunk)
+                    if total:
+                        progress(stage="Downloading Java", percent=min(75, 5 + int(70 * size / total)), downloaded=size, total=total)
+                    else:
+                        progress(stage="Downloading Java", downloaded=size, total=0)
+        progress(stage="Verifying checksum", percent=78)
+        if digest.hexdigest() != expected:
+            raise ValueError("Downloaded Java checksum mismatch")
+        progress(stage="Extracting runtime", percent=83)
+        unpack = Path(temp) / "unpacked"
+        unpack.mkdir()
+        with tarfile.open(archive, "r:gz") as tf:
+            members = tf.getmembers()
+            for member in members:
+                p = Path(member.name)
+                if p.is_absolute() or ".." in p.parts or not p.parts:
+                    raise ValueError("Unsafe Java archive entry")
+                if member.issym() or member.islnk():
+                    # Verify the resolved link target remains inside extraction root.
+                    # Symlink targets are relative to the link's parent; hardlinks
+                    # are relative to the archive root.
+                    import posixpath
+                    target = member.linkname
+                    if not target or target.startswith("/"):
+                        raise ValueError("Unsafe Java archive link")
+                    base = posixpath.dirname(member.name) if member.issym() else ""
+                    resolved = posixpath.normpath(posixpath.join(base, target))
+                    if resolved == ".." or resolved.startswith("../") or resolved.startswith("/"):
+                        raise ValueError("Unsafe Java archive link")
+                elif not (member.isdir() or member.isfile()):
+                    raise ValueError("Unsafe Java archive entry")
+            tf.extractall(unpack, filter="data")
+        candidates = list(unpack.glob("*/bin/java"))
+        if len(candidates) != 1:
+            raise ValueError("Java executable not found in archive")
+        source = candidates[0].parent.parent
+        destination = JAVA_ROOT / f"temurin-{major}"
+        staged = JAVA_ROOT / f".temurin-{major}-new"
+        if staged.exists():
+            shutil.rmtree(staged)
+        shutil.move(str(source), str(staged))
+        if not java_version(str(staged / "bin" / "java")).startswith('openjdk version'):
+            shutil.rmtree(staged)
+            raise ValueError("Downloaded runtime failed verification")
+        progress(stage="Activating runtime", percent=95)
+        if destination.exists():
+            shutil.rmtree(destination)
+        staged.rename(destination)
+
+def resolved_start_command():
+    command = runtime_state["start_command"]
+    selection = runtime_state.get("java_runtime", "system")
+    if selection != "system":
+        executable = java_executable(selection)
+        if not executable:
+            raise ValueError("Selected Java runtime is not installed")
+        # Replace only the java executable token, not arbitrary arguments.
+        command, count = re.subn(r"(?<!\S)java(?=\s)", lambda _: shlex.quote(executable), command, count=1)
+        if not count:
+            raise ValueError("Startup command must contain the 'java' executable")
+    if "%srvjar%" not in command:
+        return command
+    selected = runtime_state.get("server_jar", "")
+    if selected not in available_server_jars():
+        raise ValueError("Selected server JAR is missing from the versions directory. Choose a version in Settings.")
+    # Shell-quote the filename, including spaces and special characters.
+    return command.replace("%srvjar%", shlex.quote(os.path.join("versions", selected)))
+
+
+def sync_start_command():
+    server_mgr.start_command = resolved_start_command()
+
 PLUGINS_DIR = os.path.join(cfg["minecraft"]["server_dir"], "plugins")
+MODS_DIR = os.path.join(cfg["minecraft"]["server_dir"], "mods")
+USERS_DB = os.path.join(DATA_DIR, "users.sqlite3")
+PERMISSIONS = {"dashboard":"Dashboard", "console":"Console and server controls", "backups":"Backups", "schedule":"Scheduler", "properties":"Properties", "players":"Players", "bans":"Bans", "extensions":"Plugins / Mods", "files":"File Manager", "settings":"Settings"}
+ROUTE_PERMISSIONS = {"dashboard":"dashboard", "console":"console", "api_console_logs":"console", "api_console_clear":"console", "api_console_send":"console", "api_server_start":"console", "api_server_stop":"console", "api_server_restart":"console", "api_stats":"dashboard", "api_players_online":"players", "api_players_history":"players", "players_page":"players", "bans_page":"bans", "plugins_page":"extensions", "plugins_toggle":"extensions", "mods_page":"extensions", "mods_toggle":"extensions", "files_edit":"files", "files_page":"files", "files_download":"files", "files_delete":"files", "files_rename":"files", "backups_page":"backups", "run_backup":"backups", "schedule_page":"schedule", "delete_schedule":"schedule", "run_schedule_now":"schedule", "properties_page":"properties", "settings_page":"settings"}
+
+def db():
+    con=sqlite3.connect(USERS_DB, timeout=10)
+    con.row_factory=sqlite3.Row
+    return con
+
+def init_users():
+    with db() as con:
+        con.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT UNIQUE NOT NULL COLLATE NOCASE, password_hash TEXT NOT NULL, is_admin INTEGER NOT NULL DEFAULT 0, permissions TEXT NOT NULL DEFAULT '[]', auth_version TEXT NOT NULL)")
+        if not con.execute("SELECT 1 FROM users LIMIT 1").fetchone():
+            con.execute("INSERT INTO users(username,password_hash,is_admin,permissions,auth_version) VALUES (?,?,?,?,?)", ("admin",generate_password_hash(cfg["panel"]["admin_password"]),1,"[]",secrets.token_hex(16)))
+
+init_users()
+
+def current_user():
+    uid=session.get("user_id")
+    if not uid: return None
+    with db() as con: user=con.execute("SELECT * FROM users WHERE id=?",(uid,)).fetchone()
+    if not user or session.get("auth_version") != user["auth_version"]: return None
+    return dict(user)
+
+def allowed(permission):
+    user=current_user()
+    return bool(user and (user["is_admin"] or permission in json.loads(user["permissions"])))
+
+@app.context_processor
+def inject_access():
+    return {"can":allowed, "current_user":current_user(), "server_mode":runtime_state.get("server_mode","vanilla")}
+
 # -------------------------------------------------
 # Server Manager
 # -------------------------------------------------
@@ -84,7 +274,68 @@ server_mgr = MinecraftServerManager(
 # Authentication
 # -------------------------------------------------
 
-ADMIN_PASSWORD = cfg["panel"]["admin_password"]
+# Load saved settings at startup, including the selected server mode.
+try:
+    with open(CONFIG_STATE_PATH) as state_file:
+        saved_state=json.load(state_file)
+    for key in runtime_state:
+        if key in saved_state: runtime_state[key]=saved_state[key]
+except (OSError, ValueError): pass
+
+# Normalize startup configuration after both YAML defaults and saved settings load.
+# MinecraftServerManager already sets cwd=server_dir; an explicit cd is unnecessary.
+def repair_startup_configuration():
+    import shlex as _shlex
+    import re as _re
+    default_command = "java -Xms2G -Xmx14G -jar %srvjar% nogui"
+    command = runtime_state.get("start_command")
+    changed = False
+    if not isinstance(command, str) or not command.strip() or "PATH-TO-SERVER-DIRECTORY" in command:
+        command = default_command
+        changed = True
+    else:
+        # Remove only an obsolete cd prefix pointing to a missing directory.
+        # Existing valid custom commands remain untouched.
+        match = _re.match(r"^\s*cd\s+(.+?)\s*&&\s*(.+)$", command, _re.S)
+        if match:
+            try:
+                parts = _shlex.split(match.group(1))
+                old_dir = parts[0] if len(parts) == 1 else None
+            except ValueError:
+                old_dir = None
+            if old_dir and not os.path.isdir(old_dir):
+                command = match.group(2).strip()
+                changed = True
+    if not changed:
+        return
+    runtime_state["start_command"] = command
+    cfg["minecraft"]["start_command"] = command
+    # Write both files atomically and preserve all unrelated settings.
+    # Do not overwrite a config.yml that cannot be safely parsed.
+    for path, obj, dumper in (
+        (CONFIG_PATH, cfg, lambda v: yaml.safe_dump(v, sort_keys=False)),
+        (CONFIG_STATE_PATH, runtime_state, lambda v: json.dumps(v, indent=2)),
+    ):
+        tmp = path + ".tmp"
+        try:
+            with open(tmp, "w") as f:
+                f.write(dumper(obj))
+            os.replace(tmp, path)
+        except OSError as exc:
+            app.logger.warning("Could not update %s: %s", path, exc)
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+
+repair_startup_configuration()
+
+# Apply persisted settings before any start or scheduled operation.
+server_mgr.auto_restart = runtime_state["auto_restart"]
+try:
+    sync_start_command()
+except ValueError:
+    server_mgr.start_command = ""  # Invalid selection must never launch an unintended JAR.
 
 
 def license_ok():
@@ -98,8 +349,13 @@ def login_required(f):
         # gate everything except login/license routes (which don't use this decorator)
         if not license_ok():
             return redirect(url_for("license_page"))
-        if not session.get("logged_in"):
+        if not current_user():
+            session.clear()
             return redirect(url_for("login"))
+        permission=ROUTE_PERMISSIONS.get(request.endpoint)
+        if not permission and request.endpoint not in ("logout","license_page","license_accept","users_page"):
+            permission=next((v for k,v in (("/api/server/","console"),( "/api/console/","console"),("/schedule","schedule"),("/backups","backups"),("/files","files"),("/players","players"),("/bans","bans")) if request.path.startswith(k)), "dashboard")
+        if permission and not allowed(permission): abort(403)
         return f(*args, **kwargs)
     return wrapper
 
@@ -576,14 +832,56 @@ scheduler.start()
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        pw = request.form.get("password")
-        if pw == ADMIN_PASSWORD:
-            session["logged_in"] = True
+        username=request.form.get("username", "").strip()
+        password=request.form.get("password", "")
+        with db() as con: user=con.execute("SELECT * FROM users WHERE username=?",(username,)).fetchone()
+        if user and check_password_hash(user["password_hash"], password):
+            session.clear()
+            session["user_id"]=user["id"]
+            session["auth_version"]=user["auth_version"]
+            session["logged_in"]=True
             return redirect(url_for("dashboard"))
-        flash("Invalid password.", "error")
-
+        flash("Invalid username or password.", "error")
     return render_template("login.html", title="Login")
 
+@app.route("/users", methods=["GET", "POST"])
+@login_required
+def users_page():
+    if not current_user()["is_admin"]: abort(403)
+    if request.method == "POST":
+        action=request.form.get("action")
+        username=request.form.get("username", "").strip()
+        password=request.form.get("password", "")
+        permissions=[x for x in request.form.getlist("permissions") if x in PERMISSIONS]
+        target=request.form.get("user_id", type=int)
+        try:
+            with db() as con:
+                if action=="create":
+                    if not re.fullmatch(r"[A-Za-z0-9_.-]{3,32}",username) or len(password)<8: raise ValueError("Username must be 3-32 characters (letters, numbers, _, . or -) and password at least 8 characters.")
+                    con.execute("INSERT INTO users(username,password_hash,is_admin,permissions,auth_version) VALUES (?,?,?,?,?)",(username,generate_password_hash(password),int(request.form.get("is_admin")=="on"),json.dumps(permissions),secrets.token_hex(16)))
+                elif action in ("edit","delete"):
+                    row=con.execute("SELECT * FROM users WHERE id=?",(target,)).fetchone()
+                    if not row: raise ValueError("User not found")
+                    if action=="delete":
+                        if row["id"]==current_user()["id"]: raise ValueError("Cannot delete your own account")
+                        if row["is_admin"] and con.execute("SELECT COUNT(*) FROM users WHERE is_admin=1").fetchone()[0]<=1: raise ValueError("Cannot delete the last admin")
+                        con.execute("DELETE FROM users WHERE id=?",(target,))
+                    else:
+                        admin=int(request.form.get("is_admin")=="on")
+                        if row["is_admin"] and not admin and con.execute("SELECT COUNT(*) FROM users WHERE is_admin=1").fetchone()[0]<=1: raise ValueError("Cannot demote the last admin")
+                        if not re.fullmatch(r"[A-Za-z0-9_.-]{3,32}",username): raise ValueError("Invalid username")
+                        if password and len(password)<8: raise ValueError("Password must have at least 8 characters")
+                        hash_value=generate_password_hash(password) if password else row["password_hash"]
+                        version=secrets.token_hex(16) if password or admin!=row["is_admin"] or json.dumps(permissions)!=row["permissions"] else row["auth_version"]
+                        con.execute("UPDATE users SET username=?,password_hash=?,is_admin=?,permissions=?,auth_version=? WHERE id=?",(username,hash_value,admin,json.dumps(permissions),version,target))
+                        if target==current_user()["id"]: session["auth_version"]=version
+                else: raise ValueError("Unknown action")
+            flash("User management changes saved.","success")
+        except (ValueError,sqlite3.IntegrityError) as exc: flash(str(exc),"error")
+        return redirect(url_for("users_page"))
+    with db() as con: users=[dict(x) for x in con.execute("SELECT * FROM users ORDER BY username")]
+    for user in users: user["grants"]=json.loads(user["permissions"])
+    return render_template("users.html",title="User Management",users=users,permissions=PERMISSIONS)
 
 @app.route("/logout")
 @login_required
@@ -618,6 +916,12 @@ def console():
 def api_console_logs():
     last_id = int(request.args.get("last_id", 0))
     return jsonify({"logs": server_mgr.get_logs_since(last_id)})
+
+
+@app.route("/api/console/clear", methods=["POST"])
+@login_required
+def api_console_clear():
+    return jsonify({"ok": True, "last_id": server_mgr.clear_console()})
 
 
 @app.route("/api/console/send", methods=["POST"])
@@ -874,81 +1178,52 @@ def bans_page():
 # Plugin Manager
 # -------------------------------------------------
 
+def extension_listing(mode):
+    directory=MODS_DIR if mode=="modded" else PLUGINS_DIR
+    os.makedirs(directory,exist_ok=True)
+    entries=[]
+    for entry in os.scandir(directory):
+        if entry.is_file() and (entry.name.endswith(".jar") or entry.name.endswith(".jar.disabled")):
+            name=entry.name
+            entries.append({"file":name,"plugin":name.removesuffix(".disabled").removesuffix(".jar"),"enabled":name.endswith(".jar")})
+    return sorted(entries,key=lambda x:x["plugin"].lower())
+
+def extension_toggle(mode, endpoint):
+    filename=request.form.get("file","")
+    directory=MODS_DIR if mode=="modded" else PLUGINS_DIR
+    if not filename or filename!=os.path.basename(filename) or not (filename.endswith(".jar") or filename.endswith(".jar.disabled")):
+        abort(400)
+    source=os.path.join(directory,filename)
+    target=os.path.join(directory,filename.removesuffix(".disabled") if filename.endswith(".jar.disabled") else filename+".disabled")
+    if not os.path.isfile(source): abort(404)
+    if os.path.exists(target): abort(409)
+    os.rename(source,target)
+    flash("Extension enabled." if target.endswith(".jar") else "Extension disabled.","success")
+    return redirect(url_for(endpoint))
+
 @app.route("/plugins")
 @login_required
 def plugins_page():
-    os.makedirs(PLUGINS_DIR, exist_ok=True)
-    plugins = []
+    if runtime_state.get("server_mode")!="vanilla": return redirect(url_for("mods_page"))
+    return render_template("plugins.html",title="Plugins",plugins=extension_listing("vanilla"),kind="Plugin",toggle_endpoint="plugins_toggle")
 
-    try:
-        with os.scandir(PLUGINS_DIR) as it:
-            for entry in it:
-                if not entry.is_file():
-                    continue
-                name = entry.name
-
-                # Only care about .jar and .jar.disabled
-                if not (name.endswith(".jar") or name.endswith(".jar.disabled")):
-                    continue
-
-                # Enabled if plain .jar (NOT .jar.disabled)
-                enabled = name.endswith(".jar") and not name.endswith(".jar.disabled")
-
-                # Logical plugin name (strip .disabled and .jar)
-                base = name
-                if base.endswith(".disabled"):
-                    base = base[:-9]          # strip ".disabled"
-                if base.endswith(".jar"):
-                    base = base[:-4]          # strip ".jar"
-
-                plugins.append({
-                    "file": name,
-                    "plugin": base,
-                    "enabled": enabled,
-                })
-    except FileNotFoundError:
-        flash("Plugins directory not found.", "error")
-
-    plugins.sort(key=lambda p: p["plugin"].lower())
-    return render_template("plugins.html", title="Plugins", plugins=plugins)
-
-
-@app.route("/plugins/toggle", methods=["POST"])
+@app.route("/plugins/toggle",methods=["POST"])
 @login_required
 def plugins_toggle():
-    plugin_file = request.form.get("file")
-    if not plugin_file:
-        flash("No plugin file specified.", "error")
-        return redirect(url_for("plugins_page"))
+    if runtime_state.get("server_mode")!="vanilla": abort(403)
+    return extension_toggle("vanilla","plugins_page")
 
-    current_path = os.path.join(PLUGINS_DIR, plugin_file)
-    if not os.path.isfile(current_path):
-        flash("Plugin file not found.", "error")
-        return redirect(url_for("plugins_page"))
+@app.route("/mods")
+@login_required
+def mods_page():
+    if runtime_state.get("server_mode")!="modded": return redirect(url_for("plugins_page"))
+    return render_template("plugins.html",title="Mods",plugins=extension_listing("modded"),kind="Mod",toggle_endpoint="mods_toggle")
 
-    # Decide new filename
-    if plugin_file.endswith(".jar.disabled"):
-        # Enable: remove ".disabled"
-        new_name = plugin_file[:-9]
-    elif plugin_file.endswith(".jar"):
-        # Disable: add ".disabled"
-        new_name = plugin_file + ".disabled"
-    else:
-        flash("Unsupported plugin file type.", "error")
-        return redirect(url_for("plugins_page"))
-
-    new_path = os.path.join(PLUGINS_DIR, new_name)
-
-    try:
-        os.rename(current_path, new_path)
-        if new_name.endswith(".disabled"):
-            flash(f"Plugin disabled: {new_name}", "success")
-        else:
-            flash(f"Plugin enabled: {new_name}", "success")
-    except Exception as e:
-        flash(f"Failed to toggle plugin: {e}", "error")
-
-    return redirect(url_for("plugins_page"))
+@app.route("/mods/toggle",methods=["POST"])
+@login_required
+def mods_toggle():
+    if runtime_state.get("server_mode")!="modded": abort(403)
+    return extension_toggle("modded","mods_page")
 
 # -------------------------------------------------
 # File Manager
@@ -1314,16 +1589,85 @@ def properties_page():
 # Settings Page
 # -------------------------------------------------
 
+# Installation status is process-local; the worker and status endpoint must run in the same process.
+_java_jobs = {}
+_java_jobs_lock = threading.Lock()
+_java_install_lock = threading.Lock()
+
+def _java_job_update(job_id, **changes):
+    with _java_jobs_lock:
+        if job_id in _java_jobs:
+            _java_jobs[job_id].update(changes)
+
+def _java_install_worker(job_id, major):
+    with _java_install_lock:
+        try:
+            _java_job_update(job_id, stage="Preparing installation", percent=1)
+            install_temurin(major, lambda **changes: _java_job_update(job_id, **changes))
+            runtime_state["java_runtime"] = str(major)
+            save_json(CONFIG_STATE_PATH, runtime_state)
+            sync_start_command()
+            _java_job_update(job_id, stage="Installed and activated", percent=100, status="complete")
+        except Exception as exc:
+            app.logger.exception("Java installation failed")
+            _java_job_update(job_id, stage="Installation failed", status="error", error=str(exc))
+
+@app.route("/settings/java/install", methods=["POST"])
+@login_required
+def install_java_route():
+    user = current_user()
+    if not user or not user["is_admin"]:
+        abort(403)
+    try:
+        major = int(request.form.get("java_major", "0"))
+        if major not in JAVA_RELEASES:
+            raise ValueError("Unsupported Java version")
+    except ValueError:
+        return jsonify({"error": "Unsupported Java version"}), 400
+    with _java_jobs_lock:
+        if any(j["status"] in ("queued", "running") for j in _java_jobs.values()):
+            return jsonify({"error": "Another Java installation is in progress"}), 409
+        job_id = uuid.uuid4().hex
+        _java_jobs[job_id] = {"status": "running", "stage": "Starting", "percent": 0, "downloaded": 0, "total": 0, "owner": user["id"]}
+    threading.Thread(target=_java_install_worker, args=(job_id, major), daemon=True).start()
+    return jsonify({"job_id": job_id}), 202
+
+@app.route("/settings/java/install/status/<job_id>")
+@login_required
+def java_install_status(job_id):
+    user = current_user()
+    if not user or not user["is_admin"]:
+        abort(403)
+    with _java_jobs_lock:
+        job = _java_jobs.get(job_id)
+        if not job or job["owner"] != user["id"]:
+            abort(404)
+        return jsonify({k: v for k, v in job.items() if k != "owner"})
+
 @app.route("/settings", methods=["GET", "POST"])
 @login_required
 def settings_page():
     if request.method == "POST":
         runtime_state["discord_webhook_url"] = request.form.get("webhook_url", "").strip()
+        requested_jar = request.form.get("server_jar", "")
+        if requested_jar and requested_jar not in available_server_jars():
+            flash("Invalid server version. Refresh the page and select an available JAR.", "error")
+            return redirect(url_for("settings_page"))
+        runtime_state["server_jar"] = requested_jar
         runtime_state["start_command"] = request.form.get("start_command", runtime_state["start_command"])
+        requested_java = request.form.get("java_runtime", "system")
+        if requested_java not in ["system", *[str(v) for v in JAVA_RELEASES]] or not java_executable(requested_java):
+            flash("Selected Java runtime is unavailable. Install it first.", "error")
+            return redirect(url_for("settings_page"))
+        runtime_state["java_runtime"] = requested_java
         runtime_state["auto_restart"] = request.form.get("auto_restart") == "on"
+        runtime_state["server_mode"] = "modded" if request.form.get("server_mode")=="modded" else "vanilla"
 
         # Update live server manager
-        server_mgr.start_command = runtime_state["start_command"]
+        try:
+            sync_start_command()
+        except ValueError:
+            server_mgr.start_command = ""
         server_mgr.auto_restart = runtime_state["auto_restart"]
 
         save_json(CONFIG_STATE_PATH, runtime_state)
@@ -1335,7 +1679,11 @@ def settings_page():
     for k, v in saved.items():
         runtime_state[k] = v
 
-    return render_template("settings.html", state=runtime_state, title="Settings")
+    try:
+        sync_start_command()
+    except ValueError:
+        server_mgr.start_command = ""
+    return render_template("settings.html", state=runtime_state, server_jars=available_server_jars(), java_options=java_runtime_options(), is_admin=bool(current_user() and current_user()["is_admin"]), title="Settings")
 
 
 # -------------------------------------------------

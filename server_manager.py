@@ -304,6 +304,60 @@ class MinecraftServerManager:
             for name, ts in items[:limit]
         ]
 
+    def clear_console(self) -> int:
+        """Clear only the panel's in-memory log history, not Minecraft log files."""
+        with self.log_lock:
+            self.console_log.clear()
+            return self._log_id
+
+    def restart(self) -> bool:
+        """Restart asynchronously, waiting for the previous process to exit."""
+        with self.process_lock:
+            if getattr(self, "_manual_restart_pending", False):
+                return False
+            self._manual_restart_pending = True
+            proc = self.process if self.process and self.process.poll() is None else None
+            if proc is not None:
+                self.user_requested_stop = True
+
+        def worker():
+            try:
+                self._add_log_line("[PANEL] Manual restart requested.")
+                if proc is not None:
+                    # Do not call stop(): its separate worker can race a new launch.
+                    try:
+                        if proc.stdin:
+                            proc.stdin.write("stop\n")
+                            proc.stdin.flush()
+                    except (OSError, ValueError, BrokenPipeError):
+                        pass
+                    try:
+                        proc.wait(timeout=35)
+                    except subprocess.TimeoutExpired:
+                        self._add_log_line("[PANEL] Graceful stop timed out; terminating server.")
+                        proc.terminate()
+                        try:
+                            proc.wait(timeout=10)
+                        except subprocess.TimeoutExpired:
+                            proc.kill()
+                            proc.wait()
+                    with self.process_lock:
+                        if self.process is proc:
+                            self.process = None
+                            self.running = False
+                if self.start():
+                    self._add_log_line("[PANEL] Manual restart completed.")
+                else:
+                    self._add_log_line("[PANEL] Restart could not start a new process.")
+            except Exception as exc:
+                self._add_log_line(f"[PANEL] Restart failed: {exc}")
+            finally:
+                with self.process_lock:
+                    self._manual_restart_pending = False
+
+        threading.Thread(target=worker, daemon=True).start()
+        return True
+
     # -------------------------------------------------
     # Console Log Handling
     # -------------------------------------------------
@@ -386,7 +440,7 @@ class MinecraftServerManager:
                     self.running = False
                     self._add_log_line(f"[PANEL] Server stopped with code {ret}.")
 
-                    if self.auto_restart and not self.user_requested_stop:
+                    if self.auto_restart and not self.user_requested_stop and not getattr(self, "_manual_restart_pending", False):
                         self._add_log_line("[PANEL] Auto-restart enabled, restarting server...")
                         self._do_restart_locked()
                     else:

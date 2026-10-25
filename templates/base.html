@@ -17,21 +17,22 @@
           Newts<br><span>Server Control Panel <small>v{{ APP_VERSION }}</small></span>
         </div>
       </div>
-      {% if session.get('logged_in') %}
+      {% if current_user %}
       
         <nav>
-  <a href="{{ url_for('dashboard') }}">Dashboard</a>
-  <a href="{{ url_for('console') }}">Console</a>
-  <a href="{{ url_for('backups_page') }}">Backups (W.I.P.)</a>
-  <a href="{{ url_for('schedule_page') }}">Scheduler</a>
-  <a href="{{ url_for('properties_page') }}">Properties</a>
-  <a href="{{ url_for('players_page') }}">Players</a>   <!-- NEW -->
-  <a href="{{ url_for('bans_page') }}">Bans</a>  <!-- NEW -->
-  <a href="{{ url_for('plugins_page') }}">Plugins</a>  <!-- NEW -->
-  <a href="{{ url_for('files_page') }}">File Manager</a>   <!-- NEW -->
-  <a href="{{ url_for('settings_page') }}">Settings</a>
-  <a href="{{ url_for('logout') }}" class="logout">Logout</a>
-      </nav>
+  {% if can("dashboard") %}<a href="{{ url_for('dashboard') }}">Dashboard</a>{% endif %}
+  {% if can("console") %}<a href="{{ url_for('console') }}">Console</a>{% endif %}
+  {% if can("backups") %}<a href="{{ url_for('backups_page') }}">Backups (W.I.P.)</a>{% endif %}
+  {% if can("schedule") %}<a href="{{ url_for('schedule_page') }}">Scheduler</a>{% endif %}
+  {% if can("properties") %}<a href="{{ url_for('properties_page') }}">Properties</a>{% endif %}
+  {% if can("players") %}<a href="{{ url_for('players_page') }}">Players</a>{% endif %}
+  {% if can("bans") %}<a href="{{ url_for('bans_page') }}">Bans</a>{% endif %}
+  {% if can("extensions") %}{% if server_mode == "modded" %}<a href="{{ url_for('mods_page') }}">Mods</a>{% else %}<a href="{{ url_for('plugins_page') }}">Plugins</a>{% endif %}{% endif %}
+  {% if can("files") %}<a href="{{ url_for('files_page') }}">File Manager</a>{% endif %}
+  {% if can("settings") %}<a href="{{ url_for('settings_page') }}">Settings</a>{% endif %}
+  {% if current_user.is_admin %}<a href="{{ url_for('users_page') }}">User Management</a>{% endif %}
+  <a href="{{ url_for('logout') }}" class="logout">Logout ({{ current_user.username }})</a>
+</nav>
       {% endif %}
     </aside>
 

@@ -18,7 +18,21 @@ async function fetchJson(url, options = {}) {
 
   if (btnStart) btnStart.addEventListener("click", async () => { await post("/api/server/start"); });
   if (btnStop) btnStop.addEventListener("click", async () => { await post("/api/server/stop"); });
-  if (btnRestart) btnRestart.addEventListener("click", async () => { await post("/api/server/restart"); });
+  if (btnRestart) btnRestart.addEventListener("click", async () => {
+    btnRestart.disabled = true;
+    try { await post("/api/server/restart"); }
+    catch (e) { alert("Restart failed: " + e.message); }
+    finally { setTimeout(() => { btnRestart.disabled = false; }, 2000); }
+  });
+  const btnClear = document.getElementById("btnClearConsole");
+  if (btnClear) btnClear.addEventListener("click", async () => {
+    try {
+      const data = await post("/api/console/clear");
+      consoleLastId = data.last_id;
+      const output = document.getElementById("console-output");
+      if (output) output.replaceChildren();
+    } catch (e) { alert("Clear console failed: " + e.message); }
+  });
 })();
 
 function initDashboard() {
@@ -90,6 +104,10 @@ function initConsole() {
   async function pollLogs() {
     try {
       const data = await fetchJson("/api/console/logs?last_id=" + consoleLastId);
+      // Capture the scroll position before appending new lines. If the user
+      // has scrolled up to read history, do not pull them back to the bottom.
+      const distanceFromBottom = output.scrollHeight - output.scrollTop - output.clientHeight;
+      const shouldFollow = distanceFromBottom <= 24;
       for (const entry of data.logs) {
         consoleLastId = entry.id;
         const div = document.createElement("div");
@@ -102,7 +120,7 @@ function initConsole() {
         div.textContent = entry.line;
         output.appendChild(div);
       }
-      if (data.logs.length > 0) {
+      if (data.logs.length > 0 && shouldFollow) {
         output.scrollTop = output.scrollHeight;
       }
     } catch (e) {

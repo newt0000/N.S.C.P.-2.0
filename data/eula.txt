@@ -1,2 +1,2 @@
-accepted=false
-timestamp=
+accepted=true
+timestamp=2026-10-25T19:04:00.124027Z

@@ -1,0 +1,35 @@
+# Python
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+
+# Java runtimes
+data/java_runtimes/
+
+# NSCP private data
+data/users.sqlite3
+data/config_state.json
+config.yml
+.env
+.env.*
+
+# Minecraft runtime files
+world/
+world_nether/
+world_the_end/
+versions/
+logs/
+crash-reports/
+plugins/spark/tmp/
+
+# Temporary files
+*.log
+*.tmp
+.DS_Store
+
+# IDE
+.idea/
+.vscode/

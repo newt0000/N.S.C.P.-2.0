@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="card">
-  <h2>Plugin Manager</h2>
+  <h2>{{ kind }} Manager</h2>
   <p class="muted">
     Toggling a plugin renames its <code>.jar</code> file to <code>.jar.disabled</code> (or back).
     Changes take effect the next time the server starts.
@@ -11,7 +11,7 @@
     <table class="data-table">
       <thead>
         <tr>
-          <th>Plugin</th>
+          <th>{{ kind }}</th>
           <th>File</th>
           <th>Status</th>
           <th>Toggle</th>
@@ -27,7 +27,7 @@
 </td>
 
             <td>
-              <form method="post" action="{{ url_for('plugins_toggle') }}">
+              <form method="post" action="{{ url_for(toggle_endpoint) }}">
                 <input type="hidden" name="file" value="{{ p.file }}">
                 <button type="submit" class="btn-small">
                   {{ 'Disable' if p.enabled else 'Enable' }}
@@ -39,7 +39,7 @@
       </tbody>
     </table>
   {% else %}
-    <p class="muted">No plugin jars found in the <code>plugins</code> directory.</p>
+    <p class="muted">No {{ kind|lower }} JAR files found in the <code>{{ "mods" if kind == "Mod" else "plugins" }}</code> directory.</p>
   {% endif %}
 </div>
 {% endblock %}

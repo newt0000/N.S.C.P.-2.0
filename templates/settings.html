@@ -2,20 +2,111 @@
 {% block content %}
 <div class="card">
   <h2>Settings</h2>
-  <form method="post">
+  <form id="nscp-settings-form" method="post"></form>
+    <label>Server version</label>
+    <select form="nscp-settings-form" name="server_jar" class="version-select">
+      <option value="">-- Select server JAR --</option>
+      {% for jar in server_jars %}
+      <option value="{{ jar }}" {% if state.server_jar == jar %}selected{% endif %}>{{ jar }}</option>
+      {% endfor %}
+    </select>
+    <p class="muted">Detected from <code>versions/</code> in the Minecraft server directory. Save to apply to the next launch or restart.</p>
+    {% if not server_jars %}<p class="muted">No JAR files found in the versions directory.</p>{% endif %}
+    {% if state.server_jar and state.server_jar not in server_jars %}<p class="muted">Previously selected version is no longer available.</p>{% endif %}
+
+  <h3>Java Runtime</h3>
+  <p class="muted">Choose the Java executable used by NSCP when launching this Minecraft server. Installed runtimes are stored under <code>data/java_runtimes/</code>; the system default is unchanged.</p>
+  <label>Active Java</label>
+  <select form="nscp-settings-form" name="java_runtime" class="version-select">
+    {% for value, label, version in java_options %}
+    <option value="{{ value }}" {% if state.java_runtime|default('system') == value %}selected{% endif %}>{{ label }} — {{ version }}</option>
+    {% endfor %}
+  </select>
+
+{% if is_admin %}
+<div class="java-install-inline" style="margin:16px 0 22px;padding:18px;border:1px solid #293143;border-radius:14px">
+  <h3>Install Java Runtime</h3>
+  <p class="muted">Downloads the official Eclipse Temurin JDK for Linux and verifies its SHA-256 checksum. Installation may take a few minutes. Does not require sudo.</p>
+  <form id="java-install-form" method="post" action="{{ url_for('install_java_route') }}">
+    <label>Java version</label>
+    <select name="java_major" class="version-select">
+      <option value="17">Java 17</option>
+      <option value="21">Java 21</option>
+      <option value="25" selected>Java 25</option>
+    </select>
+    <input type="hidden" name="activate" value="1">
+    <button class="btn-primary" type="submit">Install / Update &amp; Activate Java</button>
+    <div id="java-install-progress" hidden style="margin-top:14px" role="status" aria-live="polite">
+      <div id="java-install-stage">Preparing…</div>
+      <progress id="java-install-bar" max="100" value="0" style="width:100%;height:18px"></progress>
+      <div id="java-install-percent">0%</div>
+    </div>
+  </form>
+</div>
+{% endif %}
+
     <label>Server start command</label>
-    <textarea name="start_command" rows="3">{{ state.start_command }}</textarea>
+    <textarea form="nscp-settings-form" name="start_command" rows="3">{{ state.start_command }}</textarea>
 
     <label>Discord Webhook URL</label>
-    <input type="text" name="webhook_url" value="{{ state.discord_webhook_url }}">
+    <input form="nscp-settings-form" type="text" name="webhook_url" value="{{ state.discord_webhook_url }}">
 
     <label class="checkbox">
-      <input type="checkbox" name="auto_restart" {% if state.auto_restart %}checked{% endif %}>
+      <input form="nscp-settings-form" type="checkbox" name="auto_restart" {% if state.auto_restart %}checked{% endif %}>
       Auto-restart on crash
     </label>
 
-    <button type="submit" class="btn-primary">Save Settings</button>
-      <small>NOTICE: changes to these settings are saved session side, this means that they will revert to the defaults set in the config.yml file of the nscp root if the program is restarted.</small>
-  </form>
+    <label>Server type</label><label class="checkbox"><input form="nscp-settings-form" type="checkbox" name="server_mode" value="modded" {% if state.server_mode == "modded" %}checked{% endif %}> Modded mode (unchecked = Vanilla)</label><p class="muted">Switches Plugins to Mods and manages the corresponding server directory. This does not change your server JAR or startup command.</p>
+    <button type="submit" form="nscp-settings-form" class="btn-primary">Save Settings</button>
+      <small>Settings are saved to data/config_state.json and persist across restarts. Use %srvjar% to insert the selected JAR from versions/.</small>
 </div>
+
+<script>
+(() => {
+  const form = document.getElementById('java-install-form');
+  if (!form) return;
+  const progress = document.getElementById('java-install-progress');
+  const bar = document.getElementById('java-install-bar');
+  const stage = document.getElementById('java-install-stage');
+  const percent = document.getElementById('java-install-percent');
+  const button = form.querySelector('button[type="submit"]');
+  const statusUrl = {{ url_for('java_install_status', job_id='__JOB__')|tojson }};
+  const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    button.disabled = true;
+    progress.hidden = false;
+    bar.value = 0;
+    stage.textContent = 'Starting installation…';
+    percent.textContent = '0%';
+    try {
+      const response = await fetch(form.action, {method:'POST', body:new FormData(form), credentials:'same-origin'});
+      const started = await response.json();
+      if (!response.ok) throw Error(started.error || 'Unable to start installation');
+      while (true) {
+        await wait(800);
+        const result = await fetch(statusUrl.replace('__JOB__', started.job_id), {credentials:'same-origin'});
+        if (!result.ok) throw Error('Unable to read installation progress');
+        const data = await result.json();
+        stage.textContent = data.stage || 'Working…';
+        if (data.total) {
+          stage.textContent += ` (${(data.downloaded / 1048576).toFixed(1)} / ${(data.total / 1048576).toFixed(1)} MB)`;
+        } else if (data.downloaded) {
+          stage.textContent += ` (${(data.downloaded / 1048576).toFixed(1)} MB downloaded)`;
+        }
+        if (typeof data.percent === 'number') {
+          bar.value = data.percent;
+          percent.textContent = data.percent + '%';
+        }
+        if (data.status === 'error') throw Error(data.error || 'Installation failed');
+        if (data.status === 'complete') { window.location.reload(); return; }
+      }
+    } catch (error) {
+      stage.textContent = error.message;
+      percent.textContent = 'Failed';
+      button.disabled = false;
+    }
+  });
+})();
+</script>
 {% endblock %}
