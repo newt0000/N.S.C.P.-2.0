@@ -751,3 +751,15 @@ select:focus {
 /* Server version selector */
 .server-version-select { display:block; width:100%; box-sizing:border-box; padding:12px 16px; background:#0d101c; color:#f5f5ff; border:1px solid #175a68; border-radius:12px; font:inherit; margin-bottom:10px; }
 .server-version-select:focus { outline:none; border-color:#e45be8; box-shadow:0 0 0 3px rgba(228,91,232,.12); }
+
+/* NSCP 2.1: compact user management and dialogs */
+.nscp-user-head,.nscp-actions,.nscp-modal-header,.nscp-modal-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.nscp-user-head{margin-bottom:18px}.nscp-user-head h2{margin:0}.nscp-user-list{display:grid;gap:10px}
+.nscp-user-item{border:1px solid #344055;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.025)}
+.nscp-user-item summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:14px;padding:14px 16px}
+.nscp-user-item summary::-webkit-details-marker{display:none}.nscp-user-icon{width:40px;height:40px;border-radius:10px;background:#253c56;display:grid;place-items:center;font-weight:700}
+.nscp-user-identity{display:grid;gap:3px;flex:1}.nscp-user-identity small{color:#a4adbb}.nscp-user-chevron{font-size:22px;transition:transform .15s}.nscp-user-item[open] .nscp-user-chevron{transform:rotate(180deg)}
+.nscp-user-editor{border-top:1px solid #344055;padding:18px;display:grid;gap:12px}.nscp-user-editor h3{margin:8px 0 0}.nscp-permission-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px}.nscp-permission-grid .checkbox{margin:0}
+.nscp-delete-form{padding:0 18px 18px}.nscp-modal[hidden]{display:none!important}.nscp-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10000;display:grid;place-items:center;padding:16px;overflow:auto}
+.nscp-modal-panel{width:min(100%,560px);max-height:calc(100vh - 32px);overflow:auto;background:#161e2b;color:inherit;border:1px solid #354359;border-radius:16px;padding:22px;box-shadow:0 20px 80px #0009}
+.nscp-modal-panel form{display:grid;gap:12px}.nscp-modal-header h2{margin:0}.nscp-modal-close{cursor:pointer;background:transparent;border:0;color:inherit;font-size:28px}.nscp-modal-actions{justify-content:flex-end;margin-top:12px}.nscp-modal-open{overflow:hidden}

@@ -155,6 +155,7 @@ class MinecraftServerManager:
         self._log_id = 0
 
         self._reader_thread: Optional[threading.Thread] = None
+        self.on_server_ready = None
         self._watcher_thread: Optional[threading.Thread] = None
 
         # Manual stop flag
@@ -422,8 +423,18 @@ class MinecraftServerManager:
         if not proc or not proc.stdout:
             return
 
+        ready_sent = False
         for line in proc.stdout:
             self._add_log_line(line)
+            # Paper/Spigot/Vanilla and Forge typically emit "Done (...s)!" at readiness.
+            if not ready_sent and re.search(r"\bDone \(.*?s\)!", line):
+                ready_sent = True
+                callback = self.on_server_ready
+                if callable(callback):
+                    try:
+                        callback()
+                    except Exception as exc:
+                        self._add_log_line(f"[PANEL] Owner setup failed: {exc}")
 
         self._add_log_line("[PANEL] Console reader stopped.")
 

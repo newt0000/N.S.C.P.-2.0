@@ -47,7 +47,7 @@ from server_manager import MinecraftServerManager
 # -------------------------------------------------
 # Paths
 # -------------------------------------------------
-APP_VERSION = "2.1.0"
+APP_VERSION = "2.1.1"
 
 CONFIG_PATH = "config.yml"
 DATA_DIR = "data"
@@ -82,6 +82,8 @@ runtime_state = {
     "server_mode": "vanilla",
     "server_jar": "",
     "java_runtime": "system",
+    "server_owner_username": "",
+    "server_owner_auto_op": False,
 }
 
 def available_server_jars():
@@ -329,6 +331,18 @@ def repair_startup_configuration():
                 pass
 
 repair_startup_configuration()
+
+def whitelist_server_owner():
+    """Called once when the Minecraft console reports a completed startup."""
+    owner = str(runtime_state.get("server_owner_username", "")).strip()
+    if not re.fullmatch(r"[A-Za-z0-9_]{3,16}", owner):
+        return
+    if server_mgr.send_command(f"whitelist add {owner}"):
+        app.logger.info("Owner whitelist command sent for %s", owner)
+    if runtime_state.get("server_owner_auto_op"):
+        server_mgr.send_command(f"op {owner}")
+
+server_mgr.on_server_ready = whitelist_server_owner
 
 # Apply persisted settings before any start or scheduled operation.
 server_mgr.auto_restart = runtime_state["auto_restart"]
@@ -856,7 +870,24 @@ def users_page():
         target=request.form.get("user_id", type=int)
         try:
             with db() as con:
-                if action=="create":
+                if action=="admin_credentials":
+                    me = con.execute("SELECT * FROM users WHERE id=?", (current_user()["id"],)).fetchone()
+                    old_password = request.form.get("current_password", "")
+                    new_password = request.form.get("new_password", "")
+                    new_username = request.form.get("admin_username", "").strip()
+                    if not me or not me["is_admin"] or not check_password_hash(me["password_hash"], old_password):
+                        raise ValueError("Current administrator password is incorrect")
+                    if not re.fullmatch(r"[A-Za-z0-9_.-]{3,32}", new_username):
+                        raise ValueError("Username must be 3-32 characters (letters, numbers, _, . or -)")
+                    if new_password and len(new_password) < 8:
+                        raise ValueError("New password must be at least 8 characters")
+                    if new_password != request.form.get("confirm_password", ""):
+                        raise ValueError("New passwords do not match")
+                    new_version = secrets.token_hex(16)
+                    con.execute("UPDATE users SET username=?, password_hash=?, auth_version=? WHERE id=?",
+                        (new_username, generate_password_hash(new_password) if new_password else me["password_hash"], new_version, me["id"]))
+                    session["auth_version"] = new_version
+                elif action=="create":
                     if not re.fullmatch(r"[A-Za-z0-9_.-]{3,32}",username) or len(password)<8: raise ValueError("Username must be 3-32 characters (letters, numbers, _, . or -) and password at least 8 characters.")
                     con.execute("INSERT INTO users(username,password_hash,is_admin,permissions,auth_version) VALUES (?,?,?,?,?)",(username,generate_password_hash(password),int(request.form.get("is_admin")=="on"),json.dumps(permissions),secrets.token_hex(16)))
                 elif action in ("edit","delete"):
@@ -1648,6 +1679,12 @@ def java_install_status(job_id):
 @login_required
 def settings_page():
     if request.method == "POST":
+        owner_name = request.form.get("server_owner_username", "").strip()
+        if owner_name and not re.fullmatch(r"[A-Za-z0-9_]{3,16}", owner_name):
+            flash("Minecraft owner username must be 3-16 letters, numbers or underscores.", "error")
+            return redirect(url_for("settings_page"))
+        runtime_state["server_owner_username"] = owner_name
+        runtime_state["server_owner_auto_op"] = request.form.get("server_owner_auto_op") == "on"
         runtime_state["discord_webhook_url"] = request.form.get("webhook_url", "").strip()
         requested_jar = request.form.get("server_jar", "")
         if requested_jar and requested_jar not in available_server_jars():

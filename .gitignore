@@ -15,6 +15,7 @@ data/config_state.json
 config.yml
 .env
 .env.*
+*.zip
 
 # Minecraft runtime files
 world/

@@ -45,6 +45,12 @@
 </div>
 {% endif %}
 
+    <h3>Server Owner</h3>
+    <p class="muted">On each completed Minecraft startup, automatically whitelist this player. Operator access is optional.</p>
+    <label>Minecraft owner username</label>
+    <input form="nscp-settings-form" type="text" name="server_owner_username" value="{{ state.server_owner_username|default('', true) }}" pattern="[A-Za-z0-9_]{3,16}" maxlength="16" placeholder="Minecraft username" autocomplete="off">
+    <label class="checkbox"><input form="nscp-settings-form" type="checkbox" name="server_owner_auto_op" {% if state.server_owner_auto_op|default(false) %}checked{% endif %}> Automatically OP server owner on startup</label>
+
     <label>Server start command</label>
     <textarea form="nscp-settings-form" name="start_command" rows="3">{{ state.start_command }}</textarea>
 
