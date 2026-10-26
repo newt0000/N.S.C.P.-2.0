@@ -1,1 +1,7 @@
-{% extends "base.html" %}{% block content %}<div class="card card-centered"><h2>Login</h2><form method="post"><label>Username</label><input type="text" name="username" autocomplete="username" required autofocus><label>Password</label><input type="password" name="password" autocomplete="current-password" required><button class="btn-primary">Enter Panel</button></form></div>{% endblock %}
+{% extends "base.html" %}{% block content %}<link rel="apple-touch-icon" sizes="180x180"
+                                                  href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+
+<meta name="apple-mobile-web-app-title" content="NSCP">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#080814"><div class="card card-centered"><h2>Login</h2><form method="post"><label>Username</label><input type="text" name="username" autocomplete="username" required autofocus><label>Password</label><input type="password" name="password" autocomplete="current-password" required><button class="btn-primary">Enter Panel</button></form></div>{% endblock %}
