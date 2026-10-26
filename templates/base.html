@@ -7,10 +7,11 @@
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
   <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
   <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='mobile-nav.js') }}" defer></script>
 </head>
 <body>
   <div class="layout">
-    <aside class="sidebar">
+    <aside class="sidebar" id="nscp-sidebar" aria-label="Main navigation">
       <div class="brand">
         <div class="brand-icon"><img width="64px" src="{{ url_for('static', filename='logo.png') }}"></div>
         <div class="brand-text">
@@ -36,8 +37,10 @@
       {% endif %}
     </aside>
 
+    <div class="mobile-nav-backdrop" id="mobile-nav-backdrop" hidden></div>
     <main class="main">
       <header class="topbar">
+        {% if current_user %}<button type="button" class="mobile-menu-toggle" id="mobile-menu-toggle" aria-controls="nscp-sidebar" aria-expanded="false" aria-label="Open navigation menu"><span></span><span></span><span></span></button>{% endif %}
         <h1>{{ title or "Newts Server Control Panel" }}</h1>
       </header>
 
