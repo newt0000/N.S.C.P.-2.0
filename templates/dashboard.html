@@ -1,43 +1,22 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="grid-2">
-  <div class="card">
-    <h2>Server Status</h2>
-    <div id="server-status" data-initial="{{ 'online' if stats.server_running else 'offline' }}">
-      <div class="status-pill {{ 'online' if stats.server_running else 'offline' }}">
-        {{ 'Online' if stats.server_running else 'Offline' }}
-      </div>
-    </div>
-    <div class="button-row">
-      <button id="btn-start" class="btn-primary">Start Server</button>
-      <button id="btn-stop" class="btn-outline">Stop Server</button>
-    </div>
+<div class="monitor-dashboard">
+  <div class="monitor-header"><div><h2>Minecraft Overview</h2><p class="muted">Live process monitoring · rolling history</p></div><select id="monitor-range" aria-label="History range"><option value="1">Last hour</option><option value="6">6 hours</option><option value="24">24 hours</option><option value="168">7 days</option></select></div>
+  <div class="monitor-cards">
+    <div class="card"><div class="muted">Server status</div><div id="server-status"><span class="status-pill offline">Checking…</span></div><div class="button-row"><button id="btn-start" class="btn-primary">Start Server</button><button id="btn-stop" class="btn-outline">Stop Server</button></div></div>
+    <div class="card"><div class="muted">Minecraft CPU</div><strong id="cpu" class="monitor-number">—</strong><small class="muted">% of one logical core; may exceed 100%</small></div>
+    <div class="card"><div class="muted">Java process RAM</div><strong id="mem" class="monitor-number">—</strong><small class="muted">Resident memory (RSS), not heap allocation</small></div>
+    <div class="card"><div class="muted">Online players</div><strong id="player-count" class="monitor-number">—</strong><small class="muted">RCON / log tracking</small></div>
   </div>
-
-  <div class="card">
-    <h2>Hardware Usage</h2>
-    <div id="stats">
-      <p>CPU: <span id="cpu"></span></p>
-      <p>Memory: <span id="mem"></span></p>
-      <p>Disk: <span id="disk"></span></p>
-    </div>
+  <div class="monitor-grid">
+    <details class="card monitor-graph" open><summary><h3>CPU usage</h3><span class="monitor-chevron" aria-hidden="true">⌄</span></summary><div class="monitor-chart-area"><canvas id="chart-cpu" aria-label="cpu history graph"></canvas><div class="monitor-tooltip" role="status" hidden></div></div></details>
+    <details class="card monitor-graph" open><summary><h3>Memory usage</h3><span class="monitor-chevron" aria-hidden="true">⌄</span></summary><div class="monitor-chart-area"><canvas id="chart-memory" aria-label="memory history graph"></canvas><div class="monitor-tooltip" role="status" hidden></div></div></details>
+    <details class="card monitor-graph" open><summary><h3>Server uptime <small class="muted">· scheduler markers</small></h3><span class="monitor-chevron" aria-hidden="true">⌄</span></summary><div class="monitor-chart-area"><canvas id="chart-uptime" aria-label="uptime history graph"></canvas><div class="monitor-tooltip" role="status" hidden></div></div></details>
+    <details class="card monitor-graph" open><summary><h3>Online players <small class="muted">· join / leave markers</small></h3><span class="monitor-chevron" aria-hidden="true">⌄</span></summary><div class="monitor-chart-area"><canvas id="chart-players" aria-label="players history graph"></canvas><div class="monitor-tooltip" role="status" hidden></div></div></details>
   </div>
+  <div class="grid-2"><div class="card"><h3>Online Players</h3><ul id="online-players" class="player-list"><li class="placeholder">Loading…</li></ul></div><div class="card"><h3>Recent Players</h3><ul id="recent-players" class="player-list"><li class="placeholder">Loading…</li></ul></div></div>
+  <div class="card"><h3>Timeline Events</h3><div id="monitor-events" class="monitor-events muted">Collecting events…</div></div>
 </div>
-
-<!-- NEW: players section -->
-<div class="grid-2" style="margin-top: 1.25rem;">
-  <div class="card">
-    <h2>Online Players</h2>
-    <ul id="online-players" class="player-list">
-      <li class="placeholder">No data yet…</li>
-    </ul>
-  </div>
-
-  <div class="card">
-    <h2>Recent Players</h2>
-    <ul id="recent-players" class="player-list">
-      <li class="placeholder">No data yet…</li>
-    </ul>
-  </div>
-</div>
+<link rel="stylesheet" href="{{ url_for('static', filename='monitor-graph.css') }}">
+<script src="{{ url_for('static', filename='monitor.js') }}" defer></script>
 {% endblock %}

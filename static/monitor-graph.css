@@ -1,0 +1,12 @@
+/* NSCP graph polish */
+.monitor-graph{min-width:0;position:relative}
+.monitor-graph summary{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;list-style:none;user-select:none}
+.monitor-graph summary::-webkit-details-marker{display:none}
+.monitor-graph summary h3{margin:0}
+.monitor-chevron{font-size:24px;color:#a5a5bd;transition:transform .2s ease}
+.monitor-graph[open] .monitor-chevron{transform:rotate(180deg)}
+.monitor-graph summary:focus-visible{outline:2px solid #17d8f0;outline-offset:5px;border-radius:5px}
+.monitor-chart-area{position:relative;margin-top:14px;min-width:0}
+.monitor-chart-area canvas{cursor:crosshair;touch-action:pan-y}
+.monitor-tooltip{position:absolute;z-index:5;white-space:pre-line;pointer-events:none;min-width:145px;max-width:205px;background:rgba(17,19,34,.96);border:1px solid rgba(151,155,191,.38);border-radius:10px;padding:9px 12px;color:#f3f4ff;box-shadow:0 9px 24px rgba(0,0,0,.42);font:12px/1.5 system-ui}
+.monitor-tooltip[hidden]{display:none}

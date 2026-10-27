@@ -263,7 +263,7 @@ function renderPlayerLists() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  initDashboard();
+  if (!document.getElementById("chart-cpu")) initDashboard();
   initConsole();
   initSchedulerForm();
   

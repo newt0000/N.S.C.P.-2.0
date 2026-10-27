@@ -426,6 +426,11 @@ class MinecraftServerManager:
         ready_sent = False
         for line in proc.stdout:
             self._add_log_line(line)
+            try:
+                from monitoring import record_player_log
+                record_player_log(line)
+            except Exception:
+                pass
             # Paper/Spigot/Vanilla and Forge typically emit "Done (...s)!" at readiness.
             if not ready_sent and re.search(r"\bDone \(.*?s\)!", line):
                 ready_sent = True
@@ -546,17 +551,11 @@ class MinecraftServerManager:
     # Hardware Stats
     # -------------------------------------------------
     def get_stats(self) -> dict:
-        cpu = psutil.cpu_percent(interval=0.2)
-        mem = psutil.virtual_memory()
-        disk = psutil.disk_usage(self.server_dir)
-
-        return {
-            "cpu_percent": cpu,
-            "mem_total": mem.total,
-            "mem_used": mem.used,
-            "mem_percent": mem.percent,
-            "disk_total": disk.total,
-            "disk_used": disk.used,
-            "disk_percent": disk.percent,
-            "server_running": self.is_running(),
-        }
+        """Metrics for the managed Minecraft JVM, not the host."""
+        from monitoring import process_metrics
+        with self.process_lock:
+            proc = self.process
+            pid = proc.pid if proc and proc.poll() is None else None
+        result = process_metrics(pid)
+        result["server_running"] = pid is not None
+        return result

@@ -43,6 +43,7 @@ EDITABLE_EXTS = {
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from server_manager import MinecraftServerManager
+from monitoring import event as monitor_event, history as monitor_history, start_sampler
 
 # -------------------------------------------------
 # Paths
@@ -756,6 +757,12 @@ def process_tempbans():
         save_tempbans(keep)
 
 def execute_schedule(sched: dict) -> bool:
+    ok = _execute_schedule_impl(sched)
+    if ok:
+        monitor_event('schedule', f"{sched.get('mode','command')}: {sched.get('name') or sched.get('command') or sched.get('id','scheduled task')}")
+    return ok
+
+def _execute_schedule_impl(sched: dict) -> bool:
     """
     Execute a single schedule object.
     Supports modes: command (default), backup, restart.
@@ -837,6 +844,7 @@ scheduler.add_job(
     seconds=cfg.get("scheduler", {}).get("tick_seconds", 30)
 )
 scheduler.start()
+start_sampler(server_mgr)
 
 
 # -------------------------------------------------
@@ -995,6 +1003,11 @@ def api_server_restart():
         send_discord_embed("Server Restarted", "Minecraft server restarted.")
     return jsonify({"ok": ok})
 
+
+@app.route("/api/monitor/history")
+@login_required
+def api_monitor_history():
+    return jsonify(monitor_history(request.args.get('hours', 1)))
 
 @app.route("/api/stats")
 @login_required
