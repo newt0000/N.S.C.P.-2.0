@@ -79,7 +79,7 @@ def start_sampler(manager):
                 last_online=online
             except Exception as exc:
                 print('[NSCP monitor] sample failed:',exc)
-            time.sleep(15)
+            time.sleep(5)
     threading.Thread(target=worker,daemon=True,name='nscp-monitor').start()
 
 def history(hours=1):

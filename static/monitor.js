@@ -84,5 +84,5 @@
   document.querySelectorAll('.monitor-graph').forEach(d=>d.addEventListener('toggle',()=>{if(d.open&&latest)requestAnimationFrame(()=>ids.forEach(id=>chart(id,latest.samples,latest.events)));}));
   document.getElementById('btn-start').addEventListener('click',async()=>{await fetch('/api/server/start',{method:'POST'});setTimeout(refresh,1200);});
   document.getElementById('btn-stop').addEventListener('click',async()=>{await fetch('/api/server/stop',{method:'POST'});setTimeout(refresh,1200);});
-  refresh();setInterval(refresh,15000);
+  refresh();setInterval(refresh,5000);
 })();
