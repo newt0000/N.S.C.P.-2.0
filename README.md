@@ -3,6 +3,7 @@ A standalone Linux-based Minecraft server management panel featuring backups, sc
 
 ## Features
 - Web dashboard for real-time server monitoring
+- multi user login system
 - Start/stop controls with auto-restart
 - Full console streaming + command input
 - Backup system with retention management
@@ -10,9 +11,10 @@ A standalone Linux-based Minecraft server management panel featuring backups, sc
 - Discord webhook integration
 - RCON-powered player list + join history
 - Player management (op/deop, whitelist)
+- automatic owner whitelist and op settings
 - File manager with upload/download/delete
 - Built-in text editor (.yml, .json, .txt, .md, .properties)
-- Plugin manager (enable/disable `.jar.disabled`)
+- Plugin/Mod manager (enable/disable `.jar.disabled`)
 - server.properties editor
 - License acceptance gate (scroll-to-accept)
 - Hardware usage (CPU/RAM/Disk) monitoring
@@ -31,7 +33,7 @@ A standalone Linux-based Minecraft server management panel featuring backups, sc
 ### 1. Extract NSCP
 Place the folder somewhere permanent:
 ```
-/DATA/AppData/servers/server-id/nscp2.0
+/DATA/AppData/servers/server-id/nscp2.1
 ```
 
 ### 2. Configure config.yml
@@ -57,8 +59,30 @@ rcon.password=your_password
 ```
 
 ### 6. Configure systemd Service
-Create `/etc/systemd/system/nscp.service`
-if you're unsure of how to assemble a basic service unit, feel free to reach out to me via discord and i can assist in getting one up and running for you
+Create `/etc/systemd/system/nscp.service`\
+*bellow is a template you can use*
+```service
+[Unit]
+Description=Newts Server Control Panel
+After=network.target
+
+[Service]
+LimitNOFILE=16384
+User=root
+WorkingDirectory=/path/to/launch/directory
+ExecStart=/path/to/launch/script/runcp.sh
+Restart=always
+RestartSec=60
+Environment="FLASK_ENV=production"
+
+Environment="RCON_HOST=127.0.0.1"
+Environment="RCON_PORT=25575"
+Environment="RCON_PASS=CHANGE_ME"
+
+
+[Install]
+WantedBy=multi-user.target
+```
 
 ### 7. First Launch
 Visit http://YOUR-IP:8081, accept EULA, login, configure panel.
@@ -72,21 +96,21 @@ Join My Discord: http://discord.newt-tech.com
   <summary>Login Page</summary>
 
   ## Login  
-  <img alt="login page" src="gallery/login.png">
+  <img alt="login page" src="gallery/login2.1.png">
 </details>
 
 <details>
   <summary>Dashboard</summary>
 
   ## Dashboard  
-  <img alt="dashboard page" src="gallery/dashboard.png">
+  <img alt="dashboard page" src="gallery/dashboard2.1.png">
 </details>
 
 <details>
   <summary>Console</summary>
 
   ## Console  
-  <img alt="console page" src="gallery/console.png">
+  <img alt="console page" src="gallery/console2.1.png">
 </details>
 
 <details>
@@ -142,5 +166,11 @@ Join My Discord: http://discord.newt-tech.com
   <summary>Settings</summary>
 
   ## Settings  
-  <img alt="settings page" src="gallery/settings.png">
+  <img alt="settings page" src="gallery/settings2.1.png">
+</details>
+<details>
+  <summary>User Management</summary>
+
+## User Management
+  <img alt="settings page" src="gallery/users.png">
 </details>
