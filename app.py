@@ -48,7 +48,7 @@ from monitoring import event as monitor_event, history as monitor_history, start
 # -------------------------------------------------
 # Paths
 # -------------------------------------------------
-APP_VERSION = "2.1.2"
+APP_VERSION = "2.1.3"
 
 CONFIG_PATH = "config.yml"
 DATA_DIR = "data"
