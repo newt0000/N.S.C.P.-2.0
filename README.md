@@ -1,5 +1,10 @@
 # Newts Server Control Panel (NSCP)
+<span style="display: flex; justify-content: center; align-items: center;">
+<img alt="backups page" style="border-radius:5%" width="200px" src="gallery/icon-trans.png">
+</span>
 A standalone Linux-based Minecraft server management panel featuring backups, scheduling, live console, RCON player tracking, plugin manager, file explorer, text editor, and more.
+
+
 
 ## Features
 - Web dashboard for real-time server monitoring
